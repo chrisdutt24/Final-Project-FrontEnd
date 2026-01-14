@@ -1,23 +1,23 @@
-import React, { useState } from 'react'
-import { Modal, Button } from './UI'
-import { CATEGORIES, CATEGORY_MAP } from '../constants'
-import { EntryStatus, EntryType } from '../types'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../services/api'
+import React, { useState } from "react";
+import { Modal, Button } from "./UI";
+import { CATEGORIES, CATEGORY_MAP } from "../constants";
+import { EntryStatus, EntryType } from "../types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../services/api";
 
 export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState(defaultCategory || 'Contracts')
-  const [status, setStatus] = useState(EntryStatus.ACTIVE)
-  const [expirationDate, setExpirationDate] = useState('')
-  const [notes, setNotes] = useState('')
-  const [file, setFile] = useState(null)
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState(defaultCategory || "Contracts");
+  const [status, setStatus] = useState(EntryStatus.ACTIVE);
+  const [expirationDate, setExpirationDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState(null);
 
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const type = CATEGORY_MAP[category] || EntryType.PERSONAL
+      const type = CATEGORY_MAP[category] || EntryType.PERSONAL;
       const entry = await api.entries.create({
         title,
         category,
@@ -25,39 +25,44 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         type,
         expirationDate: expirationDate || undefined,
         startAt:
-          type === EntryType.APPOINTMENT || category === 'Appointments' ? expirationDate : undefined,
+          type === EntryType.APPOINTMENT || category === "Appointments"
+            ? expirationDate
+            : undefined,
         notes,
-      })
+      });
       if (file) {
-        await api.documents.create(entry.id, file.name)
+        await api.documents.create(entry.id, file.name);
       }
-      return entry
+      return entry;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['entries'] })
-      queryClient.invalidateQueries({ queryKey: ['documents'] })
-      onClose()
-      setTitle('')
-      setCategory(defaultCategory || 'Contracts')
-      setStatus(EntryStatus.ACTIVE)
-      setExpirationDate('')
-      setNotes('')
-      setFile(null)
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      onClose();
+      setTitle("");
+      setCategory(defaultCategory || "Contracts");
+      setStatus(EntryStatus.ACTIVE);
+      setExpirationDate("");
+      setNotes("");
+      setFile(null);
     },
-  })
+  });
 
   const handleSubmit = (event) => {
-    event.preventDefault()
-    mutation.mutate()
-  }
+    event.preventDefault();
+    mutation.mutate();
+  };
 
-  const isContractOrInsurance = category === 'Contracts' || category === 'Insurance'
+  const isContractOrInsurance =
+    category === "Contracts" || category === "Insurance";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Entry">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Title</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Title
+          </label>
           <input
             type="text"
             required
@@ -69,7 +74,9 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Category</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Category
+          </label>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
@@ -84,7 +91,9 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Status
+          </label>
           <div className="flex space-x-4">
             <label className="flex items-center text-sm text-gray-700">
               <input
@@ -124,10 +133,10 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            {isContractOrInsurance ? 'Expiration Date' : 'Date & Time'}
+            {isContractOrInsurance ? "Expiration Date" : "Date & Time"}
           </label>
           <input
-            type={isContractOrInsurance ? 'date' : 'datetime-local'}
+            type={isContractOrInsurance ? "date" : "datetime-local"}
             value={expirationDate}
             onChange={(event) => setExpirationDate(event.target.value)}
             className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
@@ -135,7 +144,9 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Notes</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Notes
+          </label>
           <textarea
             rows={3}
             value={notes}
@@ -146,20 +157,28 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Upload Document</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Upload Document
+          </label>
           <input
             type="file"
-            onChange={(event) => setFile(event.target.files ? event.target.files[0] : null)}
+            onChange={(event) =>
+              setFile(event.target.files ? event.target.files[0] : null)
+            }
             className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
           />
         </div>
 
         <div className="pt-2">
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Saving...' : 'Save'}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? "Saving..." : "Save"}
           </Button>
         </div>
       </form>
     </Modal>
-  )
-}
+  );
+};
