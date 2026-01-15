@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
 import { AddEntryModal } from '../components/AddEntryModal'
 import { EntryDetailsModal } from '../components/EntryDetailsModal'
 import { EntryStatus } from '../types'
-import { getCategoryIcon } from '../constants'
+import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
 
 export const Appointments = () => {
   const [isCalendarView, setIsCalendarView] = useState(false)
@@ -13,6 +13,12 @@ export const Appointments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [showArchive, setShowArchive] = useState(false)
+
+  const { data: categories = DEFAULT_CATEGORIES } = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories.list,
+    initialData: DEFAULT_CATEGORIES,
+  })
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['entries', 'appointments', selectedFilters],
@@ -25,7 +31,10 @@ export const Appointments = () => {
   const upcoming = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) >= now)
   const past = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) < now)
 
-  const filters = ['Events', 'Friends', 'Work', 'Health', 'Finance', 'Personal']
+  const appointmentFilters = useMemo(
+    () => categories.filter((category) => category.group === 'appointments'),
+    [categories]
+  )
 
   const toggleFilter = (filter) => {
     setSelectedFilters((prev) =>
@@ -91,7 +100,7 @@ export const Appointments = () => {
                           </div>
                           <span className="calendar-category">
                             <i
-                              className={`fa-solid ${getCategoryIcon(appt.category)} category-icon`}
+                              className={`fa-solid ${getCategoryIcon(categories, appt.category)} category-icon`}
                             ></i>
                             {appt.category}
                           </span>
@@ -112,10 +121,16 @@ export const Appointments = () => {
                     <div>
                       <h4 className="appointment-row-title">{entry.title}</h4>
                       <p className="appointment-row-meta">
-                        {entry.startAt ? new Date(entry.startAt).toLocaleString() : 'No date'} •{' '}
+                        {entry.startAt
+                          ? new Date(entry.startAt).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : 'No date'}{' '}
+                        •{' '}
                         <span className="category-inline">
                           <i
-                            className={`fa-solid ${getCategoryIcon(entry.category)} category-icon`}
+                            className={`fa-solid ${getCategoryIcon(categories, entry.category)} category-icon`}
                           ></i>
                           {entry.category}
                         </span>
@@ -133,16 +148,18 @@ export const Appointments = () => {
           <Card>
             <h3 className="card-title">Filter</h3>
             <div className="filter-list">
-              {filters.map((filter) => (
-                <label key={filter} className="filter-item">
+              {appointmentFilters.map((filter) => (
+                <label key={filter.id || filter.name} className="filter-item">
                   <input
                     type="checkbox"
                     className="filter-checkbox"
-                    checked={selectedFilters.includes(filter)}
-                    onChange={() => toggleFilter(filter)}
+                    checked={selectedFilters.includes(filter.name)}
+                    onChange={() => toggleFilter(filter.name)}
                   />
-                  <i className={`fa-solid ${getCategoryIcon(filter)} filter-icon`}></i>
-                  <span>{filter}</span>
+                  <i
+                    className={`fa-solid ${getCategoryIcon(categories, filter.name)} filter-icon`}
+                  ></i>
+                  <span>{filter.name}</span>
                 </label>
               ))}
             </div>

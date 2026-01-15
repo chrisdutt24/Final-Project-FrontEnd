@@ -1,32 +1,66 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Button } from "./UI";
-import { CATEGORIES, CATEGORY_MAP } from "../constants";
+import { DEFAULT_CATEGORIES } from "../constants";
 import { EntryStatus, EntryType } from "../types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
 
 export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(defaultCategory || "Contracts");
+  const [category, setCategory] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [startAt, setStartAt] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [portalUrl, setPortalUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState(null);
 
   const queryClient = useQueryClient();
 
-  const isContractOrInsurance = category === "Contracts";
+  const { data: categories = DEFAULT_CATEGORIES } = useQuery({
+    queryKey: ["categories"],
+    queryFn: api.categories.list,
+    initialData: DEFAULT_CATEGORIES,
+  });
+
+  const categoryMap = useMemo(
+    () => new Map(categories.map((cat) => [cat.name, cat])),
+    [categories]
+  );
+  const defaultGroup = useMemo(() => {
+    const categoryMatch = defaultCategory ? categoryMap.get(defaultCategory) : null;
+    if (categoryMatch?.group) return categoryMatch.group;
+    if (
+      defaultCategory === "General" ||
+      defaultCategory === "Contract" ||
+      defaultCategory === "Contracts"
+    ) {
+      return "contracts";
+    }
+    if (defaultCategory === "Appointments") return "appointments";
+    return null;
+  }, [defaultCategory, categoryMap]);
+  const availableCategories = useMemo(() => {
+    if (!categories.length) return [];
+    const targetGroup = defaultGroup || categories[0]?.group || "appointments";
+    return categories.filter((cat) => cat.group === targetGroup);
+  }, [categories, defaultGroup]);
+  const activeCategory =
+    categoryMap.get(category) || availableCategories[0] || categories[0];
+  const isContractOrInsurance = activeCategory?.group === "contracts";
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const type = CATEGORY_MAP[category] || EntryType.PERSONAL;
+      const type = activeCategory?.entryType || EntryType.PERSONAL;
       const entry = await api.entries.create({
         title,
-        category,
+        category: category || activeCategory?.name || "General",
         status: EntryStatus.ACTIVE,
         type,
         expirationDate: isContractOrInsurance ? expirationDate || undefined : undefined,
         startAt: startAt || undefined,
+        companyName: companyName.trim() || undefined,
+        portalUrl: portalUrl.trim() || undefined,
         notes,
       });
       if (file) {
@@ -39,9 +73,11 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
       onClose();
       setTitle("");
-      setCategory(defaultCategory || "Contracts");
+      setCategory("");
       setExpirationDate("");
       setStartAt("");
+      setCompanyName("");
+      setPortalUrl("");
       setNotes("");
       setFile(null);
     },
@@ -50,21 +86,35 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
   useEffect(() => {
     if (!isOpen) return;
     setTitle("");
-    setCategory(defaultCategory || "Contracts");
+    setCategory("");
     setExpirationDate("");
     setStartAt("");
+    setCompanyName("");
+    setPortalUrl("");
     setNotes("");
     setFile(null);
-  }, [isOpen, defaultCategory]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!availableCategories.length) return;
+    if (category && !availableCategories.some((cat) => cat.name === category)) {
+      setCategory(availableCategories[0]?.name || "");
+    }
+  }, [availableCategories, category]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     mutation.mutate();
   };
 
+  const handleFileChange = (event) => {
+    const nextFile = event.target.files ? event.target.files[0] : null;
+    setFile(nextFile);
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Entry">
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit} className="form form--entry">
         <div className="form-group">
           <label className="form-label">Title</label>
           <input
@@ -84,9 +134,12 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
             onChange={(event) => setCategory(event.target.value)}
             className="form-select"
           >
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            <option value="" disabled>
+              Select category
+            </option>
+            {availableCategories.map((cat) => (
+              <option key={cat.id || cat.name} value={cat.name}>
+                {cat.name}
               </option>
             ))}
           </select>
@@ -117,6 +170,28 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         )}
 
         <div className="form-group">
+          <label className="form-label">Company Name</label>
+          <input
+            type="text"
+            value={companyName}
+            onChange={(event) => setCompanyName(event.target.value)}
+            className="form-input"
+            placeholder="e.g. Vodafone"
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Customer Portal URL</label>
+          <input
+            type="url"
+            value={portalUrl}
+            onChange={(event) => setPortalUrl(event.target.value)}
+            className="form-input"
+            placeholder="https://portal.company.com"
+          />
+        </div>
+
+        <div className="form-group">
           <label className="form-label">Notes</label>
           <textarea
             rows={3}
@@ -128,14 +203,23 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Upload Document</label>
-          <input
-            type="file"
-            onChange={(event) =>
-              setFile(event.target.files ? event.target.files[0] : null)
-            }
-            className="form-file"
-          />
+          <label className="form-label" htmlFor="entry-document">
+            Upload Document
+          </label>
+          <div className="form-file-row">
+            <input
+              id="entry-document"
+              type="file"
+              onChange={handleFileChange}
+              className="form-file-input"
+            />
+            <label className="form-file-button" htmlFor="entry-document">
+              Choose file
+            </label>
+            <span className="form-file-name">
+              {file ? file.name : "No file selected"}
+            </span>
+          </div>
         </div>
 
         <div className="form-actions">

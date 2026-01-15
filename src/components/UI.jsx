@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 
 export const Modal = ({ isOpen, onClose, title, children }) => {
   const modalRef = useRef(null)
+  const bodyRef = useRef(null)
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -16,6 +17,51 @@ export const Modal = ({ isOpen, onClose, title, children }) => {
       document.body.style.overflow = 'auto'
     }
   }, [isOpen, onClose])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const body = bodyRef.current
+    if (!body) return
+
+    const trackPadding = 16
+    const minThumb = 32
+
+    const updateScrollbar = () => {
+      const { scrollTop, scrollHeight, clientHeight } = body
+      const trackHeight = Math.max(clientHeight - trackPadding * 2, 0)
+
+      if (scrollHeight <= clientHeight || trackHeight === 0) {
+        body.style.setProperty('--scrollbar-thumb-height', `${trackHeight}px`)
+        body.style.setProperty('--scrollbar-thumb-top', `${trackPadding}px`)
+        body.style.setProperty('--scrollbar-visible', '0')
+        return
+      }
+
+      const thumbHeight = Math.max((clientHeight / scrollHeight) * trackHeight, minThumb)
+      const maxThumbTop = trackHeight - thumbHeight
+      const scrollRatio = scrollTop / (scrollHeight - clientHeight)
+      const thumbTop = trackPadding + maxThumbTop * scrollRatio
+
+      body.style.setProperty('--scrollbar-thumb-height', `${thumbHeight}px`)
+      body.style.setProperty('--scrollbar-thumb-top', `${thumbTop}px`)
+      body.style.setProperty('--scrollbar-visible', '1')
+    }
+
+    updateScrollbar()
+    body.addEventListener('scroll', updateScrollbar)
+    const resizeObserver = new ResizeObserver(updateScrollbar)
+    resizeObserver.observe(body)
+    const mutationObserver = new MutationObserver(updateScrollbar)
+    mutationObserver.observe(body, { childList: true, subtree: true, characterData: true })
+    window.addEventListener('resize', updateScrollbar)
+
+    return () => {
+      body.removeEventListener('scroll', updateScrollbar)
+      resizeObserver.disconnect()
+      mutationObserver.disconnect()
+      window.removeEventListener('resize', updateScrollbar)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -32,7 +78,9 @@ export const Modal = ({ isOpen, onClose, title, children }) => {
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div ref={bodyRef} className="modal-body">
+          {children}
+        </div>
       </div>
     </div>
   )

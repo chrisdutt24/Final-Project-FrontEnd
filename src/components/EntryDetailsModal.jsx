@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Modal, Button } from './UI'
-import { CATEGORIES, CATEGORY_MAP, getCategoryIcon } from '../constants'
+import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
 import { EntryStatus, EntryType } from '../types'
 import { api } from '../services/api'
 
@@ -35,43 +35,65 @@ const formatDisplayDate = (value, withTime) => {
       })
 }
 
+const getPortalHref = (value) => {
+  if (!value) return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
+
 export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState('Contracts')
+  const [category, setCategory] = useState('General')
   const [dateValue, setDateValue] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [portalUrl, setPortalUrl] = useState('')
   const [notes, setNotes] = useState('')
 
   const queryClient = useQueryClient()
 
-  const isContractOrInsurance = useMemo(() => category === 'Contracts', [category])
+  const { data: categories = DEFAULT_CATEGORIES } = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories.list,
+    initialData: DEFAULT_CATEGORIES,
+  })
+
+  const categoryMap = useMemo(
+    () => new Map(categories.map((cat) => [cat.name, cat])),
+    [categories]
+  )
+  const activeCategory = categoryMap.get(category) || categories[0]
+  const isContractOrInsurance = activeCategory?.group === 'contracts'
 
   useEffect(() => {
     if (!entry) return
-    const entryIsContractLike =
-      entry.category === 'Contracts' ||
-      entry.category === 'Insurance' ||
-      [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
-    const normalizedCategory =
-      entry.category === 'Insurance' || entry.type === EntryType.INSURANCE
-        ? 'Contracts'
-        : entry.category || 'Contracts'
+    const entryCategory = categoryMap.get(entry.category)
+    const entryIsContractLike = entryCategory
+      ? entryCategory.group === 'contracts'
+      : [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
+    const normalizedCategory = entryCategory?.name || entry.category || 'General'
     setIsEditing(false)
     setTitle(entry.title || '')
     setCategory(normalizedCategory)
     setNotes(entry.notes || '')
+    setCompanyName(entry.companyName || '')
+    setPortalUrl(entry.portalUrl || '')
     const entryDate = entryIsContractLike ? entry.expirationDate : entry.startAt
     setDateValue(getInputValue(entryDate || '', !entryIsContractLike))
-  }, [entry])
+  }, [entry, categoryMap])
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const type = CATEGORY_MAP[category] || EntryType.PERSONAL
+      const type = activeCategory?.entryType || EntryType.PERSONAL
       const payload = {
         title: title || 'Untitled',
-        category,
+        category: activeCategory?.name || category,
         type,
         notes: notes || '',
+        companyName: companyName.trim() || '',
+        portalUrl: portalUrl.trim() || '',
         expirationDate: isContractOrInsurance ? dateValue || null : null,
         startAt: isContractOrInsurance ? null : dateValue || null,
       }
@@ -96,6 +118,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     mutationFn: async () => api.entries.delete(entry.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['entries'] })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
       onClose()
     },
   })
@@ -113,10 +136,12 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   }
 
   if (!entry) return null
-  const displayCategory =
-    entry.category === 'Insurance' || entry.type === EntryType.INSURANCE ? 'Contracts' : entry.category
-  const statusIsDue =
-    displayCategory === 'Contracts' && entry.status === EntryStatus.DUE
+  const displayCategory = categoryMap.get(entry.category)?.name || entry.category
+  const entryGroup =
+    categoryMap.get(entry.category)?.group ||
+    ([EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type) ? 'contracts' : 'appointments')
+  const entryIsContract = entryGroup === 'contracts'
+  const statusIsDue = entryIsContract && entry.status === EntryStatus.DUE
   const statusClasses = statusIsDue ? 'details-value details-value--due' : 'details-value'
 
   return (
@@ -131,7 +156,9 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             <div className="details-item">
               <div className="details-label">Category</div>
               <div className="details-value details-value--icon">
-                <i className={`fa-solid ${getCategoryIcon(displayCategory)} category-icon`}></i>
+                <i
+                  className={`fa-solid ${getCategoryIcon(categories, displayCategory)} category-icon`}
+                ></i>
                 {displayCategory || '—'}
               </div>
             </div>
@@ -140,17 +167,38 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
               <div className={statusClasses}>{entry.status || '—'}</div>
             </div>
             <div className="details-item">
+              <div className="details-label">Company</div>
+              <div className="details-value">{entry.companyName || '—'}</div>
+            </div>
+            <div className="details-item">
+              <div className="details-label">Customer Portal</div>
+              <div className="details-value">
+                {entry.portalUrl ? (
+                  <a
+                    className="details-link"
+                    href={getPortalHref(entry.portalUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {entry.portalUrl}
+                  </a>
+                ) : (
+                  '—'
+                )}
+              </div>
+            </div>
+            <div className="details-item">
               <div className="details-label">
-                {displayCategory === 'Contracts' ? 'Expiration' : 'Date & Time'}
+                {entryIsContract ? 'Expiration' : 'Date & Time'}
               </div>
               <div
                 className={
-                  displayCategory === 'Contracts'
+                  entryIsContract
                     ? 'details-value details-value--emphasis'
                     : 'details-value'
                 }
               >
-                {displayCategory === 'Contracts'
+                {entryIsContract
                   ? formatDisplayDate(entry.expirationDate, false)
                   : formatDisplayDate(entry.startAt, true)}
               </div>
@@ -188,7 +236,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="form">
+        <form onSubmit={handleSubmit} className="form form--entry">
           <div className="form-group">
             <label className="form-label">Title</label>
             <input
@@ -208,9 +256,9 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
               onChange={(event) => setCategory(event.target.value)}
               className="form-select"
             >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {categories.map((cat) => (
+                <option key={cat.id || cat.name} value={cat.name}>
+                  {cat.name}
                 </option>
               ))}
             </select>
@@ -225,6 +273,28 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
               value={dateValue}
               onChange={(event) => setDateValue(event.target.value)}
               className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Company Name</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+              className="form-input"
+              placeholder="e.g. Vodafone"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Customer Portal URL</label>
+            <input
+              type="url"
+              value={portalUrl}
+              onChange={(event) => setPortalUrl(event.target.value)}
+              className="form-input"
+              placeholder="https://portal.company.com"
             />
           </div>
 

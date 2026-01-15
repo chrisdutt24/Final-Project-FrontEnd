@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
-import { CATEGORIES, getCategoryIcon } from '../constants'
+import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
 import { EntryType, EntryStatus } from '../types'
 import { AddEntryModal } from '../components/AddEntryModal'
 import { EntryDetailsModal } from '../components/EntryDetailsModal'
@@ -10,7 +10,7 @@ import { EntryDetailsModal } from '../components/EntryDetailsModal'
 export const Overview = () => {
   const [selectedCategories, setSelectedCategories] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [modalCategory, setModalCategory] = useState('Contracts')
+  const [modalCategory, setModalCategory] = useState('General')
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [showContractArchive, setShowContractArchive] = useState(false)
   const [showAppointmentArchive, setShowAppointmentArchive] = useState(false)
@@ -21,10 +21,31 @@ export const Overview = () => {
       month: '2-digit',
       year: 'numeric',
     })
+  const formatDateTime = (value) =>
+    new Date(value).toLocaleString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  const formatPortalHref = (value) => {
+    if (!value) return ''
+    const trimmed = value.trim()
+    if (!trimmed) return ''
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    return `https://${trimmed}`
+  }
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', selectedCategories],
     queryFn: () => api.entries.list({ category: selectedCategories }),
+  })
+
+  const { data: categories = DEFAULT_CATEGORIES } = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories.list,
+    initialData: DEFAULT_CATEGORIES,
   })
 
   const { data: documents = [] } = useQuery({
@@ -32,15 +53,45 @@ export const Overview = () => {
     queryFn: () => api.documents.list(5),
   })
 
+  const categoryMap = useMemo(
+    () => new Map(categories.map((category) => [category.name, category])),
+    [categories]
+  )
+  const contractCategories = useMemo(
+    () => categories.filter((category) => category.group === 'contracts'),
+    [categories]
+  )
+  const appointmentCategories = useMemo(
+    () => categories.filter((category) => category.group !== 'contracts'),
+    [categories]
+  )
+
+  const getEntryGroup = (entry) => {
+    const category = categoryMap.get(entry.category)
+    if (category?.group) return category.group
+    if ([EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)) return 'contracts'
+    if (
+      [
+        EntryType.APPOINTMENT,
+        EntryType.EVENT,
+        EntryType.HEALTH,
+        EntryType.FRIEND,
+        EntryType.WORK,
+      ].includes(entry.type)
+    ) {
+      return 'appointments'
+    }
+    return 'appointments'
+  }
+
   const activeContracts = entries.filter(
-    (entry) =>
-      [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type) &&
-      entry.status === EntryStatus.ACTIVE
+    (entry) => getEntryGroup(entry) === 'contracts' && entry.status === EntryStatus.ACTIVE
   ).length
 
   const fourteenDaysFromNow = new Date()
   fourteenDaysFromNow.setDate(fourteenDaysFromNow.getDate() + 14)
   const deadlineApproaching = entries.filter((entry) => {
+    if (getEntryGroup(entry) !== 'contracts') return false
     if (entry.status === EntryStatus.DONE) return false
     if (!entry.expirationDate) return false
     const exp = new Date(entry.expirationDate)
@@ -50,29 +101,15 @@ export const Overview = () => {
   const sevenDaysFromNow = new Date()
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
   const upcomingAppointmentsCount = entries.filter((entry) => {
+    if (getEntryGroup(entry) !== 'appointments') return false
     if (!entry.startAt) return false
     const start = new Date(entry.startAt)
     return start <= sevenDaysFromNow && start >= new Date()
   }).length
 
-  const contractEntries = entries.filter(
-    (entry) =>
-      entry.category === 'Contracts' ||
-      entry.type === EntryType.CONTRACT ||
-      entry.type === EntryType.INSURANCE
-  )
+  const contractEntries = entries.filter((entry) => getEntryGroup(entry) === 'contracts')
 
-  const appointmentEntries = entries.filter(
-    (entry) =>
-      entry.category === 'Appointments' ||
-      [
-        EntryType.APPOINTMENT,
-        EntryType.EVENT,
-        EntryType.HEALTH,
-        EntryType.FRIEND,
-        EntryType.WORK,
-      ].includes(entry.type)
-  )
+  const appointmentEntries = entries.filter((entry) => getEntryGroup(entry) === 'appointments')
 
   const activeContractEntries = contractEntries.filter((entry) => entry.status !== EntryStatus.DONE)
   const archivedContractEntries = contractEntries.filter((entry) => entry.status === EntryStatus.DONE)
@@ -86,10 +123,15 @@ export const Overview = () => {
   }
 
   const EntryRow = ({ entry }) => {
-    const isContract =
-      entry.category === 'Contracts' ||
-      [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
+    const isContract = getEntryGroup(entry) === 'contracts'
     const isDue = isContract && entry.status === EntryStatus.DUE
+    const extras = []
+    if (entry.companyName) {
+      extras.push({ type: 'text', value: entry.companyName })
+    }
+    if (entry.portalUrl) {
+      extras.push({ type: 'link', value: entry.portalUrl })
+    }
     return (
       <div
         className={`entry-row${isDue ? ' entry-row--due' : ''}`}
@@ -100,7 +142,9 @@ export const Overview = () => {
           <div className="entry-meta">
             <div>
               <span className="category-inline">
-                <i className={`fa-solid ${getCategoryIcon(entry.category)} category-icon`}></i>
+                <i
+                  className={`fa-solid ${getCategoryIcon(categories, entry.category)} category-icon`}
+                ></i>
                 {entry.category}
               </span>{' '}
               •{' '}
@@ -108,7 +152,34 @@ export const Overview = () => {
                 {entry.status}
               </span>
               {entry.startAt && (
-                <span className="entry-start"> • Start {formatDate(entry.startAt)}</span>
+                <span className="entry-start">
+                  {isContract
+                    ? ` • Start ${formatDate(entry.startAt)}`
+                    : ` • ${formatDateTime(entry.startAt)}`}
+                </span>
+              )}
+              {extras.length > 0 && (
+                <span className="entry-extra">
+                  {' • '}
+                  {extras.map((item, index) => (
+                    <React.Fragment key={`${item.type}-${item.value}`}>
+                      {index > 0 && <span className="entry-extra-sep"> • </span>}
+                      {item.type === 'link' ? (
+                        <a
+                          className="entry-link"
+                          href={formatPortalHref(item.value)}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {item.value}
+                        </a>
+                      ) : (
+                        <span className="entry-extra-text">{item.value}</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </span>
               )}
             </div>
           </div>
@@ -166,7 +237,7 @@ export const Overview = () => {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setModalCategory('Contracts')
+                  setModalCategory('General')
                   setIsModalOpen(true)
                 }}
               >
@@ -266,19 +337,45 @@ export const Overview = () => {
         <div className="overview-side">
           <Card>
             <h3 className="card-title">Filter</h3>
-            <div className="filter-list filter-list--scroll">
-              {CATEGORIES.map((cat) => (
-                <label key={cat} className="filter-item">
-                  <input
-                    type="checkbox"
-                    className="filter-checkbox"
-                    checked={selectedCategories.includes(cat)}
-                    onChange={() => toggleCategory(cat)}
-                  />
-                  <i className={`fa-solid ${getCategoryIcon(cat)} filter-icon`}></i>
-                  <span>{cat}</span>
-                </label>
-              ))}
+            <div className="filter-sections">
+              <div className="filter-section">
+                <div className="filter-section-title">Contract</div>
+                <div className="filter-list">
+                  {contractCategories.map((cat) => (
+                    <label key={cat.id || cat.name} className="filter-item">
+                      <input
+                        type="checkbox"
+                        className="filter-checkbox"
+                        checked={selectedCategories.includes(cat.name)}
+                        onChange={() => toggleCategory(cat.name)}
+                      />
+                      <i
+                        className={`fa-solid ${getCategoryIcon(categories, cat.name)} filter-icon`}
+                      ></i>
+                      <span>{cat.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="filter-section">
+                <div className="filter-section-title">Appointments</div>
+                <div className="filter-list">
+                  {appointmentCategories.map((cat) => (
+                    <label key={cat.id || cat.name} className="filter-item">
+                      <input
+                        type="checkbox"
+                        className="filter-checkbox"
+                        checked={selectedCategories.includes(cat.name)}
+                        onChange={() => toggleCategory(cat.name)}
+                      />
+                      <i
+                        className={`fa-solid ${getCategoryIcon(categories, cat.name)} filter-icon`}
+                      ></i>
+                      <span>{cat.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </Card>
 
@@ -289,12 +386,18 @@ export const Overview = () => {
                 <p className="empty-text">No documents uploaded.</p>
               ) : (
                 documents.map((doc) => (
-                  <div key={doc.id} className="doc-item">
+                  <a
+                    key={doc.id}
+                    className="doc-item"
+                    href={doc.fileUrl || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     <div className="doc-icon">
                       <i className="fa-solid fa-file-pdf"></i>
                     </div>
                     <span className="doc-name">{doc.filename}</span>
-                  </div>
+                  </a>
                 ))
               )}
             </div>
