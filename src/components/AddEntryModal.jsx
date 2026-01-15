@@ -8,12 +8,14 @@ import { api } from "../services/api";
 export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(defaultCategory || "Contracts");
-  const [status, setStatus] = useState(EntryStatus.ACTIVE);
   const [expirationDate, setExpirationDate] = useState("");
+  const [startAt, setStartAt] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState(null);
 
   const queryClient = useQueryClient();
+
+  const isContractOrInsurance = category === "Contracts";
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -21,13 +23,10 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
       const entry = await api.entries.create({
         title,
         category,
-        status,
+        status: EntryStatus.ACTIVE,
         type,
-        expirationDate: expirationDate || undefined,
-        startAt:
-          type === EntryType.APPOINTMENT || category === "Appointments"
-            ? expirationDate
-            : undefined,
+        expirationDate: isContractOrInsurance ? expirationDate || undefined : undefined,
+        startAt: startAt || undefined,
         notes,
       });
       if (file) {
@@ -41,8 +40,8 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
       onClose();
       setTitle("");
       setCategory(defaultCategory || "Contracts");
-      setStatus(EntryStatus.ACTIVE);
       setExpirationDate("");
+      setStartAt("");
       setNotes("");
       setFile(null);
     },
@@ -52,8 +51,8 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     if (!isOpen) return;
     setTitle("");
     setCategory(defaultCategory || "Contracts");
-    setStatus(EntryStatus.ACTIVE);
     setExpirationDate("");
+    setStartAt("");
     setNotes("");
     setFile(null);
   }, [isOpen, defaultCategory]);
@@ -63,33 +62,27 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     mutation.mutate();
   };
 
-  const isContractOrInsurance = category === "Contracts";
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Entry">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Title
-          </label>
+      <form onSubmit={handleSubmit} className="form">
+        <div className="form-group">
+          <label className="form-label">Title</label>
           <input
             type="text"
             required
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+            className="form-input"
             placeholder="e.g. Health Insurance"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Category
-          </label>
+        <div className="form-group">
+          <label className="form-label">Category</label>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+            className="form-select"
           >
             {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
@@ -99,91 +92,54 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <div className="flex space-x-4">
-            <label className="flex items-center text-sm text-gray-700">
-              <input
-                type="radio"
-                name="status"
-                value={EntryStatus.ACTIVE}
-                checked={status === EntryStatus.ACTIVE}
-                onChange={() => setStatus(EntryStatus.ACTIVE)}
-                className="mr-2 bg-white"
-              />
-              Active
-            </label>
-            <label className="flex items-center text-sm text-yellow-600 font-medium">
-              <input
-                type="radio"
-                name="status"
-                value={EntryStatus.DUE}
-                checked={status === EntryStatus.DUE}
-                onChange={() => setStatus(EntryStatus.DUE)}
-                className="mr-2 bg-white"
-              />
-              Due
-            </label>
-            <label className="flex items-center text-sm text-green-600 font-medium">
-              <input
-                type="radio"
-                name="status"
-                value={EntryStatus.DONE}
-                checked={status === EntryStatus.DONE}
-                onChange={() => setStatus(EntryStatus.DONE)}
-                className="mr-2 bg-white"
-              />
-              Done
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            {isContractOrInsurance ? "Expiration Date" : "Date & Time"}
+        <div className="form-group">
+          <label className="form-label">
+            {isContractOrInsurance ? "Start Date" : "Start Date & Time"}
           </label>
           <input
             type={isContractOrInsurance ? "date" : "datetime-local"}
-            value={expirationDate}
-            onChange={(event) => setExpirationDate(event.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+            value={startAt}
+            onChange={(event) => setStartAt(event.target.value)}
+            className="form-input"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Notes
-          </label>
+        {isContractOrInsurance && (
+          <div className="form-group">
+            <label className="form-label">Expiration Date</label>
+            <input
+              type="date"
+              value={expirationDate}
+              onChange={(event) => setExpirationDate(event.target.value)}
+              className="form-input"
+            />
+          </div>
+        )}
+
+        <div className="form-group">
+          <label className="form-label">Notes</label>
           <textarea
             rows={3}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+            className="form-textarea"
             placeholder="Additional details..."
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Upload Document
-          </label>
+        <div className="form-group">
+          <label className="form-label">Upload Document</label>
           <input
             type="file"
             onChange={(event) =>
               setFile(event.target.files ? event.target.files[0] : null)
             }
-            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
+            className="form-file"
           />
         </div>
 
-        <div className="pt-2">
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={mutation.isPending}
-          >
+        <div className="form-actions">
+          <Button type="submit" className="btn-block" disabled={mutation.isPending}>
             {mutation.isPending ? "Saving..." : "Save"}
           </Button>
         </div>

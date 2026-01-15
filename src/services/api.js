@@ -33,12 +33,73 @@ const storedEntries = loadJson(STORAGE_KEYS.entries, INITIAL_ENTRIES)
 const storedDocuments = loadJson(STORAGE_KEYS.documents, INITIAL_DOCUMENTS)
 const storedUser = loadJson(STORAGE_KEYS.user, null)
 
+const DUE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
+
 const normalizeEntry = (entry) => {
   const normalized = { ...entry }
   if (normalized.category === 'Insurance' || normalized.type === EntryType.INSURANCE) {
     normalized.category = 'Contracts'
   }
   return normalized
+}
+
+const applyDueStatus = (entry) => {
+  const isContract =
+    entry.category === 'Contracts' || [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
+  if (!isContract || !entry.expirationDate || entry.status === EntryStatus.DONE) {
+    return entry
+  }
+  const expDate = new Date(entry.expirationDate)
+  if (Number.isNaN(expDate.getTime())) return entry
+  const isDue = expDate.getTime() <= Date.now() + DUE_WINDOW_MS
+  const nextStatus = isDue ? EntryStatus.DUE : EntryStatus.ACTIVE
+  if (entry.status === nextStatus) return entry
+  return {
+    ...entry,
+    status: nextStatus,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+const applyAppointmentArchive = (entry) => {
+  const isAppointment =
+    entry.category === 'Appointments' ||
+    [
+      EntryType.APPOINTMENT,
+      EntryType.EVENT,
+      EntryType.HEALTH,
+      EntryType.FRIEND,
+      EntryType.WORK,
+    ].includes(entry.type)
+  if (!isAppointment || !entry.startAt || entry.status === EntryStatus.DONE) {
+    return entry
+  }
+  const startDate = new Date(entry.startAt)
+  if (Number.isNaN(startDate.getTime())) return entry
+  if (startDate.getTime() >= Date.now()) return entry
+  return {
+    ...entry,
+    status: EntryStatus.DONE,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+const getSortTimestamp = (entry) => {
+  const isContract =
+    entry.category === 'Contracts' || [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
+  const isAppointment =
+    entry.category === 'Appointments' ||
+    [
+      EntryType.APPOINTMENT,
+      EntryType.EVENT,
+      EntryType.HEALTH,
+      EntryType.FRIEND,
+      EntryType.WORK,
+    ].includes(entry.type)
+  const dateValue = isContract ? entry.expirationDate : isAppointment ? entry.startAt : entry.createdAt
+  if (!dateValue) return Number.POSITIVE_INFINITY
+  const parsed = new Date(dateValue).getTime()
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
 }
 
 let dbEntries = Array.isArray(storedEntries) ? [...storedEntries] : [...INITIAL_ENTRIES]
@@ -83,6 +144,16 @@ export const api = {
   entries: {
     list: async (filters = {}) => {
       await sleep(400)
+      let changed = false
+      const nextEntries = dbEntries.map((entry) => {
+        const updated = applyAppointmentArchive(applyDueStatus(entry))
+        if (updated !== entry) changed = true
+        return updated
+      })
+      if (changed) {
+        dbEntries = nextEntries
+        saveJson(STORAGE_KEYS.entries, dbEntries)
+      }
       let results = [...dbEntries]
       if (filters.category && filters.category.length > 0) {
         results = results.filter((entry) => filters.category?.includes(entry.category))
@@ -99,9 +170,15 @@ export const api = {
             ].includes(entry.type) || entry.category === 'Appointments'
         )
       }
-      return results.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      return results.sort((a, b) => {
+        const aTime = getSortTimestamp(a)
+        const bTime = getSortTimestamp(b)
+        if (aTime !== bTime) return aTime - bTime
+        const aCreated = new Date(a.createdAt).getTime()
+        const bCreated = new Date(b.createdAt).getTime()
+        if (Number.isNaN(aCreated) || Number.isNaN(bCreated)) return 0
+        return bCreated - aCreated
+      })
     },
     create: async (data) => {
       await sleep(500)

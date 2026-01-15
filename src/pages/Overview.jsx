@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
-import { CATEGORIES } from '../constants'
+import { CATEGORIES, getCategoryIcon } from '../constants'
 import { EntryType, EntryStatus } from '../types'
 import { AddEntryModal } from '../components/AddEntryModal'
 import { EntryDetailsModal } from '../components/EntryDetailsModal'
@@ -14,6 +14,13 @@ export const Overview = () => {
   const [selectedEntry, setSelectedEntry] = useState(null)
   const [showContractArchive, setShowContractArchive] = useState(false)
   const [showAppointmentArchive, setShowAppointmentArchive] = useState(false)
+
+  const formatDate = (value) =>
+    new Date(value).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', selectedCategories],
@@ -84,85 +91,80 @@ export const Overview = () => {
       [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
     const isDue = isContract && entry.status === EntryStatus.DUE
     return (
-    <div
-      className={`p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer ${
-        isDue ? 'border-l-4 border-red-500 bg-red-50' : ''
-      }`}
-      onClick={() => setSelectedEntry(entry)}
-    >
-      <div className="min-w-0">
-        <h4 className="font-medium text-gray-900">{entry.title}</h4>
-        <div className="mt-1 text-xs text-gray-500 space-y-1">
-          <div>
-            {entry.category} •{' '}
-            <span className={isDue ? 'text-red-600 font-semibold' : 'text-gray-500'}>
-              {entry.status}
-            </span>
-          </div>
-          {entry.startAt && (
-            <div className="text-gray-500">
-              Date {new Date(entry.startAt).toLocaleDateString()}
+      <div
+        className={`entry-row${isDue ? ' entry-row--due' : ''}`}
+        onClick={() => setSelectedEntry(entry)}
+      >
+        <div className="entry-main">
+          <h4 className="entry-title">{entry.title}</h4>
+          <div className="entry-meta">
+            <div>
+              <span className="category-inline">
+                <i className={`fa-solid ${getCategoryIcon(entry.category)} category-icon`}></i>
+                {entry.category}
+              </span>{' '}
+              •{' '}
+              <span className={`entry-status${isDue ? ' entry-status--due' : ''}`}>
+                {entry.status}
+              </span>
+              {entry.startAt && (
+                <span className="entry-start"> • Start {formatDate(entry.startAt)}</span>
+              )}
             </div>
+          </div>
+        </div>
+        <div className="entry-right">
+          {entry.expirationDate ? (
+            <span className="exp-badge">Exp {formatDate(entry.expirationDate)}</span>
+          ) : (
+            <span />
           )}
+          <i className="fa-solid fa-chevron-right entry-chevron"></i>
         </div>
       </div>
-      <div className="flex flex-col items-end gap-2 pl-4">
-        {entry.expirationDate && (
-          <span className="px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-semibold whitespace-nowrap">
-            Exp {new Date(entry.expirationDate).toLocaleDateString()}
-          </span>
-        )}
-        <i className="fa-solid fa-chevron-right text-gray-300 text-sm"></i>
-      </div>
-    </div>
     )
   }
 
   const ArchiveRow = ({ entry }) => (
     <div
-      className="px-4 py-3 flex items-center justify-between text-sm text-gray-500 hover:bg-gray-50 cursor-pointer"
+      className="archive-row"
       onClick={() => setSelectedEntry(entry)}
     >
-      <span className="truncate">{entry.title}</span>
-      <span className="text-xs text-gray-400">
+      <span className="archive-title">{entry.title}</span>
+      <span className="archive-date">
         {entry.expirationDate
-          ? new Date(entry.expirationDate).toLocaleDateString()
+          ? formatDate(entry.expirationDate)
           : entry.startAt
-            ? new Date(entry.startAt).toLocaleDateString()
+            ? formatDate(entry.startAt)
             : '—'}
       </span>
     </div>
   )
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="flex flex-col items-center justify-center py-8">
-          <span className="text-4xl font-bold text-gray-900">{activeContracts}</span>
-          <span className="text-sm text-gray-500 uppercase tracking-wide mt-1 text-center">
-            Active Contracts
-          </span>
+    <div className="overview">
+      <div className="overview-stats">
+        <Card className="stat-card">
+          <span className="stat-value">{activeContracts}</span>
+          <span className="stat-label">Contracts without upcoming deadline</span>
         </Card>
-        <Card className="flex flex-col items-center justify-center py-8 border-yellow-200 bg-yellow-50">
-          <span className="text-4xl font-bold text-yellow-700">{deadlineApproaching}</span>
-          <span className="text-sm text-yellow-600 uppercase tracking-wide mt-1 text-center">
-            Deadline Approaching
-          </span>
+        <Card className="stat-card stat-card--warning">
+          <span className="stat-value stat-value--warning">{deadlineApproaching}</span>
+          <span className="stat-label stat-label--warning">Deadline Approaching</span>
         </Card>
-        <Card className="flex flex-col items-center justify-center py-8">
-          <span className="text-4xl font-bold text-gray-900">{upcomingAppointmentsCount}</span>
-          <span className="text-sm text-gray-500 uppercase tracking-wide mt-1 text-center">
-            Upcoming Appointments
-          </span>
+        <Card className="stat-card">
+          <span className="stat-value">{upcomingAppointmentsCount}</span>
+          <span className="stat-label">Upcoming Appointments</span>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-8">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Contracts</h2>
+      <div className="overview-grid">
+        <div className="overview-main">
+          <div className="section">
+            <div className="section-header">
+              <h2 className="section-title">Contracts</h2>
               <Button
+                variant="secondary"
                 onClick={() => {
                   setModalCategory('Contracts')
                   setIsModalOpen(true)
@@ -171,33 +173,33 @@ export const Overview = () => {
                 + Add entry
               </Button>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="entry-list">
               {entriesLoading ? (
-                <div className="p-8 text-center text-gray-400">Loading...</div>
+                <div className="list-state">Loading...</div>
               ) : activeContractEntries.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-sm italic">
-                  No active contracts.
-                </div>
+                <div className="list-state list-state--muted">No active contracts.</div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="list-rows">
                   {activeContractEntries.map((entry) => (
                     <EntryRow key={entry.id} entry={entry} />
                   ))}
                 </div>
               )}
               {archivedContractEntries.length > 0 && (
-                <div className="border-t border-gray-100 bg-gray-50">
+                <div className="archive-block">
                   <button
-                    className="w-full px-4 py-2 text-xs text-gray-500 flex items-center justify-between hover:text-gray-700"
+                    className="archive-toggle"
                     onClick={() => setShowContractArchive((prev) => !prev)}
                   >
-                    <span>Archive ({archivedContractEntries.length})</span>
+                    <span className="archive-toggle-text">
+                      Archive ({archivedContractEntries.length})
+                    </span>
                     <i
                       className={`fa-solid fa-chevron-${showContractArchive ? 'up' : 'down'}`}
                     ></i>
                   </button>
                   {showContractArchive && (
-                    <div className="divide-y divide-gray-200">
+                    <div className="archive-list">
                       {archivedContractEntries.map((entry) => (
                         <ArchiveRow key={entry.id} entry={entry} />
                       ))}
@@ -208,9 +210,9 @@ export const Overview = () => {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Appointments & Events</h2>
+          <div className="section">
+            <div className="section-header">
+              <h2 className="section-title">Appointments & Events</h2>
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -221,33 +223,35 @@ export const Overview = () => {
                 + Add entry
               </Button>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="entry-list">
               {entriesLoading ? (
-                <div className="p-8 text-center text-gray-400">Loading...</div>
+                <div className="list-state">Loading...</div>
               ) : activeAppointmentEntries.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-sm italic">
+                <div className="list-state list-state--muted">
                   No upcoming appointments or events.
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
+                <div className="list-rows">
                   {activeAppointmentEntries.map((entry) => (
                     <EntryRow key={entry.id} entry={entry} />
                   ))}
                 </div>
               )}
               {archivedAppointmentEntries.length > 0 && (
-                <div className="border-t border-gray-100 bg-gray-50">
+                <div className="archive-block">
                   <button
-                    className="w-full px-4 py-2 text-xs text-gray-500 flex items-center justify-between hover:text-gray-700"
+                    className="archive-toggle"
                     onClick={() => setShowAppointmentArchive((prev) => !prev)}
                   >
-                    <span>Archive ({archivedAppointmentEntries.length})</span>
+                    <span className="archive-toggle-text">
+                      Archive ({archivedAppointmentEntries.length})
+                    </span>
                     <i
                       className={`fa-solid fa-chevron-${showAppointmentArchive ? 'up' : 'down'}`}
                     ></i>
                   </button>
                   {showAppointmentArchive && (
-                    <div className="divide-y divide-gray-200">
+                    <div className="archive-list">
                       {archivedAppointmentEntries.map((entry) => (
                         <ArchiveRow key={entry.id} entry={entry} />
                       ))}
@@ -259,38 +263,37 @@ export const Overview = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
+        <div className="overview-side">
           <Card>
-            <h3 className="font-bold mb-4 text-gray-900">Filter</h3>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+            <h3 className="card-title">Filter</h3>
+            <div className="filter-list filter-list--scroll">
               {CATEGORIES.map((cat) => (
-                <label key={cat} className="flex items-center text-sm text-gray-700 cursor-pointer">
+                <label key={cat} className="filter-item">
                   <input
                     type="checkbox"
-                    className="mr-3 rounded border-gray-300 text-black focus:ring-black bg-white"
+                    className="filter-checkbox"
                     checked={selectedCategories.includes(cat)}
                     onChange={() => toggleCategory(cat)}
                   />
-                  {cat}
+                  <i className={`fa-solid ${getCategoryIcon(cat)} filter-icon`}></i>
+                  <span>{cat}</span>
                 </label>
               ))}
             </div>
           </Card>
 
           <Card>
-            <h3 className="font-bold mb-4 text-gray-900">Last Documents</h3>
-            <div className="space-y-4">
+            <h3 className="card-title">Last Documents</h3>
+            <div className="doc-list">
               {documents.length === 0 ? (
-                <p className="text-sm text-gray-400">No documents uploaded.</p>
+                <p className="empty-text">No documents uploaded.</p>
               ) : (
                 documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-500 mr-3">
+                  <div key={doc.id} className="doc-item">
+                    <div className="doc-icon">
                       <i className="fa-solid fa-file-pdf"></i>
                     </div>
-                    <span className="truncate text-gray-700 hover:text-black hover:underline cursor-pointer">
-                      {doc.filename}
-                    </span>
+                    <span className="doc-name">{doc.filename}</span>
                   </div>
                 ))
               )}

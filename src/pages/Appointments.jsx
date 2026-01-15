@@ -5,6 +5,7 @@ import { Card, Button } from '../components/UI'
 import { AddEntryModal } from '../components/AddEntryModal'
 import { EntryDetailsModal } from '../components/EntryDetailsModal'
 import { EntryStatus } from '../types'
+import { getCategoryIcon } from '../constants'
 
 export const Appointments = () => {
   const [isCalendarView, setIsCalendarView] = useState(false)
@@ -40,18 +41,18 @@ export const Appointments = () => {
   }, {})
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col space-y-4">
-        <h1 className="text-3xl font-bold text-gray-900">Appointments</h1>
-        <div className="flex items-center space-x-4">
-          <div className="px-3 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-600">
+    <div className="appointments">
+      <div className="appointments-header">
+        <h1 className="appointments-title">Appointments</h1>
+        <div className="appointments-badges">
+          <div className="badge">
             {upcoming.length} upcoming
           </div>
-          <div className="px-3 py-1 bg-gray-100 rounded-full text-xs font-semibold text-gray-600">
+          <div className="badge">
             {entries.length} in total
           </div>
         </div>
-        <div className="flex space-x-3">
+        <div className="appointments-actions">
           <Button variant="secondary" onClick={() => setIsCalendarView(!isCalendarView)}>
             {isCalendarView ? 'Change to list view' : 'Change to calendar view'}
           </Button>
@@ -59,36 +60,41 @@ export const Appointments = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8">
-          <Card className="min-h-[400px]">
+      <div className="appointments-grid">
+        <div className="appointments-main">
+          <Card className="appointments-card">
             {isLoading ? (
-              <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
+              <div className="appointments-state">Loading...</div>
             ) : activeEntries.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="appointments-state">
                 No appointments scheduled.
               </div>
             ) : isCalendarView ? (
-              <div className="space-y-6">
+              <div className="calendar-list">
                 {Object.entries(groupedAppointments).map(([date, appts]) => (
                   <div key={date}>
-                    <h3 className="font-bold text-gray-900 border-b pb-2 mb-4">{date}</h3>
-                    <div className="space-y-3">
+                    <h3 className="calendar-title">{date}</h3>
+                    <div className="calendar-items">
                       {appts.map((appt) => (
                         <div
                           key={appt.id}
-                          className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center"
+                          className="calendar-item"
                         >
                           <div>
-                            <span className="text-xs font-semibold text-gray-500 block">
+                            <span className="calendar-time">
                               {new Date(appt.startAt).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
                             </span>
-                            <span className="font-medium text-gray-900">{appt.title}</span>
+                            <span className="calendar-name">{appt.title}</span>
                           </div>
-                          <span className="text-xs text-gray-400">{appt.category}</span>
+                          <span className="calendar-category">
+                            <i
+                              className={`fa-solid ${getCategoryIcon(appt.category)} category-icon`}
+                            ></i>
+                            {appt.category}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -96,21 +102,26 @@ export const Appointments = () => {
                 ))}
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="appointment-list">
                 {upcoming.map((entry) => (
                   <div
                     key={entry.id}
-                    className="py-4 flex items-center justify-between hover:bg-gray-50 px-2 rounded cursor-pointer group"
+                    className="appointment-row"
                     onClick={() => setSelectedEntry(entry)}
                   >
                     <div>
-                      <h4 className="font-medium text-gray-900">{entry.title}</h4>
-                      <p className="text-xs text-gray-500">
+                      <h4 className="appointment-row-title">{entry.title}</h4>
+                      <p className="appointment-row-meta">
                         {entry.startAt ? new Date(entry.startAt).toLocaleString() : 'No date'} •{' '}
-                        {entry.category}
+                        <span className="category-inline">
+                          <i
+                            className={`fa-solid ${getCategoryIcon(entry.category)} category-icon`}
+                          ></i>
+                          {entry.category}
+                        </span>
                       </p>
                     </div>
-                    <i className="fa-solid fa-chevron-right text-gray-300 text-sm group-hover:text-black"></i>
+                    <i className="fa-solid fa-chevron-right appointment-row-chevron"></i>
                   </div>
                 ))}
               </div>
@@ -118,37 +129,38 @@ export const Appointments = () => {
           </Card>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
+        <div className="appointments-side">
           <Card>
-            <h3 className="font-bold mb-4 text-gray-900">Filter</h3>
-            <div className="space-y-2">
+            <h3 className="card-title">Filter</h3>
+            <div className="filter-list">
               {filters.map((filter) => (
-                <label key={filter} className="flex items-center text-sm text-gray-700 cursor-pointer">
+                <label key={filter} className="filter-item">
                   <input
                     type="checkbox"
-                    className="mr-3 rounded border-gray-300 text-black focus:ring-black bg-white"
+                    className="filter-checkbox"
                     checked={selectedFilters.includes(filter)}
                     onChange={() => toggleFilter(filter)}
                   />
-                  {filter}
+                  <i className={`fa-solid ${getCategoryIcon(filter)} filter-icon`}></i>
+                  <span>{filter}</span>
                 </label>
               ))}
             </div>
           </Card>
 
           <Card>
-            <h3 className="font-bold mb-4 text-gray-900">Past Appointments</h3>
-            <div className="space-y-4">
+            <h3 className="card-title">Past Appointments</h3>
+            <div className="past-list">
               {past.length === 0 ? (
-                <p className="text-sm text-gray-400">No past records.</p>
+                <p className="empty-text">No past records.</p>
               ) : (
                 past.slice(0, 5).map((entry) => (
-                  <div key={entry.id} className="pb-3 border-b border-gray-50 last:border-0">
-                    <div className="text-[10px] text-gray-400 uppercase">
+                  <div key={entry.id} className="past-item">
+                    <div className="past-date">
                       {new Date(entry.startAt).toLocaleDateString()}
                     </div>
-                    <div className="text-sm font-medium text-gray-700">{entry.title}</div>
-                    <div className="text-[10px] text-gray-400 italic truncate">
+                    <div className="past-title">{entry.title}</div>
+                    <div className="past-notes">
                       {entry.notes || 'No location info'}
                     </div>
                   </div>
@@ -158,24 +170,24 @@ export const Appointments = () => {
           </Card>
 
           {archivedEntries.length > 0 && (
-            <Card>
+            <Card className="archive-card">
               <button
-                className="w-full flex items-center justify-between text-xs text-gray-500"
+                className="archive-toggle"
                 onClick={() => setShowArchive((prev) => !prev)}
               >
-                <span className="uppercase tracking-wide">Archive ({archivedEntries.length})</span>
+                <span className="archive-toggle-text">Archive ({archivedEntries.length})</span>
                 <i className={`fa-solid fa-chevron-${showArchive ? 'up' : 'down'}`}></i>
               </button>
               {showArchive && (
-                <div className="mt-4 space-y-3">
+                <div className="archive-list">
                   {archivedEntries.map((entry) => (
                     <div
                       key={entry.id}
-                      className="flex items-center justify-between text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                      className="archive-row"
                       onClick={() => setSelectedEntry(entry)}
                     >
-                      <span className="truncate">{entry.title}</span>
-                      <span className="text-[10px] text-gray-400 uppercase">
+                      <span className="archive-title">{entry.title}</span>
+                      <span className="archive-date">
                         {entry.startAt ? new Date(entry.startAt).toLocaleDateString() : '—'}
                       </span>
                     </div>

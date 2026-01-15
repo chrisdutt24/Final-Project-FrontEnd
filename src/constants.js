@@ -22,6 +22,19 @@ export const CATEGORY_MAP = {
   Work: EntryType.WORK,
 }
 
+export const CATEGORY_ICONS = {
+  Contracts: 'fa-file-lines',
+  Appointments: 'fa-calendar-check',
+  Health: 'fa-heart-pulse',
+  Finance: 'fa-coins',
+  Personal: 'fa-user',
+  Events: 'fa-calendar-day',
+  Friends: 'fa-user-group',
+  Work: 'fa-briefcase',
+}
+
+export const getCategoryIcon = (category) => CATEGORY_ICONS[category] || 'fa-tag'
+
 export const INITIAL_ENTRIES = [
   {
     id: '1',

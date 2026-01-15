@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Modal, Button } from './UI'
-import { CATEGORIES, CATEGORY_MAP } from '../constants'
+import { CATEGORIES, CATEGORY_MAP, getCategoryIcon } from '../constants'
 import { EntryStatus, EntryType } from '../types'
 import { api } from '../services/api'
 
@@ -26,14 +26,19 @@ const formatDisplayDate = (value, withTime) => {
   if (!value) return '—'
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
-  return withTime ? parsed.toLocaleString() : parsed.toLocaleDateString()
+  return withTime
+    ? parsed.toLocaleString()
+    : parsed.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
 }
 
 export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('Contracts')
-  const [status, setStatus] = useState(EntryStatus.ACTIVE)
   const [dateValue, setDateValue] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -54,7 +59,6 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     setIsEditing(false)
     setTitle(entry.title || '')
     setCategory(normalizedCategory)
-    setStatus(entry.status || EntryStatus.ACTIVE)
     setNotes(entry.notes || '')
     const entryDate = entryIsContractLike ? entry.expirationDate : entry.startAt
     setDateValue(getInputValue(entryDate || '', !entryIsContractLike))
@@ -66,7 +70,6 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
       const payload = {
         title: title || 'Untitled',
         category,
-        status,
         type,
         notes: notes || '',
         expirationDate: isContractOrInsurance ? dateValue || null : null,
@@ -114,36 +117,37 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     entry.category === 'Insurance' || entry.type === EntryType.INSURANCE ? 'Contracts' : entry.category
   const statusIsDue =
     displayCategory === 'Contracts' && entry.status === EntryStatus.DUE
-  const statusClasses = statusIsDue ? 'text-red-600 font-semibold' : 'text-gray-800'
+  const statusClasses = statusIsDue ? 'details-value details-value--due' : 'details-value'
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Entry Details">
       {!isEditing ? (
-        <div className="space-y-4">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-gray-400">Title</div>
-            <div className="text-lg font-semibold text-gray-900">{entry.title}</div>
+        <div className="details">
+          <div className="details-block">
+            <div className="details-label">Title</div>
+            <div className="details-title">{entry.title}</div>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-400">Category</div>
-              <div className="text-gray-800">{displayCategory || '—'}</div>
+          <div className="details-grid">
+            <div className="details-item">
+              <div className="details-label">Category</div>
+              <div className="details-value details-value--icon">
+                <i className={`fa-solid ${getCategoryIcon(displayCategory)} category-icon`}></i>
+                {displayCategory || '—'}
+              </div>
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-400">Status</div>
+            <div className="details-item">
+              <div className="details-label">Status</div>
               <div className={statusClasses}>{entry.status || '—'}</div>
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-400">
-                {displayCategory === 'Contracts'
-                  ? 'Expiration'
-                  : 'Date & Time'}
+            <div className="details-item">
+              <div className="details-label">
+                {displayCategory === 'Contracts' ? 'Expiration' : 'Date & Time'}
               </div>
               <div
                 className={
                   displayCategory === 'Contracts'
-                    ? 'text-yellow-700 font-semibold'
-                    : 'text-gray-800'
+                    ? 'details-value details-value--emphasis'
+                    : 'details-value'
                 }
               >
                 {displayCategory === 'Contracts'
@@ -151,27 +155,26 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
                   : formatDisplayDate(entry.startAt, true)}
               </div>
             </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-400">Last Updated</div>
-              <div className="text-gray-800">
+            <div className="details-item">
+              <div className="details-label">Last Updated</div>
+              <div className="details-value">
                 {formatDisplayDate(entry.updatedAt || entry.createdAt, true)}
               </div>
             </div>
           </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-gray-400">Notes</div>
-            <div className="text-sm text-gray-700 whitespace-pre-wrap">
-              {entry.notes || 'No notes added.'}
-            </div>
+          <div className="details-block">
+            <div className="details-label">Notes</div>
+            <div className="details-notes">{entry.notes || 'No notes added.'}</div>
           </div>
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
+          <div className="details-actions">
+            <div className="details-actions-left">
               <Button variant="secondary" onClick={() => setIsEditing(true)}>
                 Edit
               </Button>
               {entry.status !== EntryStatus.DONE && (
                 <Button
                   variant="ghost"
+                  className="btn--action"
                   onClick={() => markDoneMutation.mutate()}
                   disabled={markDoneMutation.isPending}
                 >
@@ -185,25 +188,25 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Title</label>
+        <form onSubmit={handleSubmit} className="form">
+          <div className="form-group">
+            <label className="form-label">Title</label>
             <input
               type="text"
               required
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+              className="form-input"
               placeholder="e.g. Health Insurance"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Category</label>
+          <div className="form-group">
+            <label className="form-label">Category</label>
             <select
               value={category}
               onChange={(event) => setCategory(event.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+              className="form-select"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -213,69 +216,30 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <div className="flex space-x-4">
-              <label className="flex items-center text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="status"
-                  value={EntryStatus.ACTIVE}
-                  checked={status === EntryStatus.ACTIVE}
-                  onChange={() => setStatus(EntryStatus.ACTIVE)}
-                  className="mr-2 bg-white"
-                />
-                Active
-              </label>
-              <label className="flex items-center text-sm text-yellow-600 font-medium">
-                <input
-                  type="radio"
-                  name="status"
-                  value={EntryStatus.DUE}
-                  checked={status === EntryStatus.DUE}
-                  onChange={() => setStatus(EntryStatus.DUE)}
-                  className="mr-2 bg-white"
-                />
-                Due
-              </label>
-              <label className="flex items-center text-sm text-green-600 font-medium">
-                <input
-                  type="radio"
-                  name="status"
-                  value={EntryStatus.DONE}
-                  checked={status === EntryStatus.DONE}
-                  onChange={() => setStatus(EntryStatus.DONE)}
-                  className="mr-2 bg-white"
-                />
-                Done
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
+          <div className="form-group">
+            <label className="form-label">
               {isContractOrInsurance ? 'Expiration Date' : 'Date & Time'}
             </label>
             <input
               type={isContractOrInsurance ? 'date' : 'datetime-local'}
               value={dateValue}
               onChange={(event) => setDateValue(event.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+              className="form-input"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Notes</label>
+          <div className="form-group">
+            <label className="form-label">Notes</label>
             <textarea
               rows={3}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 text-sm text-gray-900 bg-white"
+              className="form-textarea"
               placeholder="Additional details..."
             />
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="details-actions">
             <Button variant="secondary" onClick={() => setIsEditing(false)}>
               Cancel
             </Button>
