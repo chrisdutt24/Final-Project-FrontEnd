@@ -93,17 +93,19 @@ export const Overview = () => {
       <div>
         <h4 className="font-medium text-gray-900">{entry.title}</h4>
         <div className="mt-1 text-xs text-gray-500 space-y-1">
-          <div>
-            {entry.category} •{' '}
-            <span className={isDue ? 'text-red-600 font-semibold' : 'text-gray-500'}>
-              {entry.status}
+          <div className="flex items-center justify-between gap-3">
+            <span>
+              {entry.category} •{' '}
+              <span className={isDue ? 'text-red-600 font-semibold' : 'text-gray-500'}>
+                {entry.status}
+              </span>
             </span>
+            {entry.expirationDate && (
+              <span className="px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-semibold whitespace-nowrap">
+                Exp {new Date(entry.expirationDate).toLocaleDateString()}
+              </span>
+            )}
           </div>
-          {entry.expirationDate && (
-            <div className="inline-block px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-semibold">
-              Exp {new Date(entry.expirationDate).toLocaleDateString()}
-            </div>
-          )}
           {entry.startAt && (
             <div className="text-gray-500">
               Date {new Date(entry.startAt).toLocaleDateString()}
