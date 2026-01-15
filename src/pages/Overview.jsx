@@ -90,24 +90,13 @@ export const Overview = () => {
       }`}
       onClick={() => setSelectedEntry(entry)}
     >
-      <div>
+      <div className="min-w-0">
         <h4 className="font-medium text-gray-900">{entry.title}</h4>
         <div className="mt-1 text-xs text-gray-500 space-y-1">
-          <div className="grid grid-cols-[minmax(0,1fr)_140px] items-center gap-3">
-            <span className="min-w-0">
-              {entry.category} •{' '}
-              <span className={isDue ? 'text-red-600 font-semibold' : 'text-gray-500'}>
-                {entry.status}
-              </span>
-            </span>
-            <span className="justify-self-start">
-              {entry.expirationDate ? (
-                <span className="inline-block w-[140px] px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-semibold whitespace-nowrap">
-                  Exp {new Date(entry.expirationDate).toLocaleDateString()}
-                </span>
-              ) : (
-                <span className="inline-block w-[140px]" />
-              )}
+          <div>
+            {entry.category} •{' '}
+            <span className={isDue ? 'text-red-600 font-semibold' : 'text-gray-500'}>
+              {entry.status}
             </span>
           </div>
           {entry.startAt && (
@@ -117,7 +106,14 @@ export const Overview = () => {
           )}
         </div>
       </div>
-      <i className="fa-solid fa-chevron-right text-gray-300 text-sm"></i>
+      <div className="flex flex-col items-end gap-2 pl-4">
+        {entry.expirationDate && (
+          <span className="px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200 font-semibold whitespace-nowrap">
+            Exp {new Date(entry.expirationDate).toLocaleDateString()}
+          </span>
+        )}
+        <i className="fa-solid fa-chevron-right text-gray-300 text-sm"></i>
+      </div>
     </div>
     )
   }
