@@ -4,6 +4,34 @@ export const Modal = ({ isOpen, onClose, title, children }) => {
   const modalRef = useRef(null)
   const bodyRef = useRef(null)
 
+  const updateScrollbar = () => {
+    const body = bodyRef.current
+    if (!body) return
+
+    const trackPadding = 16
+    const minThumb = 32
+    const trackHeight = Math.max(body.clientHeight - trackPadding * 2, 0)
+    if (trackHeight === 0) {
+      body.style.setProperty('--scrollbar-thumb-height', '0px')
+      body.style.setProperty('--scrollbar-thumb-top', `${trackPadding}px`)
+      return
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = body
+    let thumbHeight = trackHeight
+    let thumbTop = trackPadding
+
+    if (scrollHeight > clientHeight) {
+      thumbHeight = Math.max((clientHeight / scrollHeight) * trackHeight, minThumb)
+      const maxThumbTop = trackHeight - thumbHeight
+      const scrollRatio = scrollTop / (scrollHeight - clientHeight)
+      thumbTop = trackPadding + maxThumbTop * scrollRatio
+    }
+
+    body.style.setProperty('--scrollbar-thumb-height', `${thumbHeight}px`)
+    body.style.setProperty('--scrollbar-thumb-top', `${thumbTop}px`)
+  }
+
   useEffect(() => {
     const handleEsc = (event) => {
       if (event.key === 'Escape') onClose()
@@ -23,45 +51,23 @@ export const Modal = ({ isOpen, onClose, title, children }) => {
     const body = bodyRef.current
     if (!body) return
 
-    const trackPadding = 16
-    const minThumb = 32
-
-    const updateScrollbar = () => {
-      const { scrollTop, scrollHeight, clientHeight } = body
-      const trackHeight = Math.max(clientHeight - trackPadding * 2, 0)
-
-      if (scrollHeight <= clientHeight || trackHeight === 0) {
-        body.style.setProperty('--scrollbar-thumb-height', `${trackHeight}px`)
-        body.style.setProperty('--scrollbar-thumb-top', `${trackPadding}px`)
-        body.style.setProperty('--scrollbar-visible', '0')
-        return
-      }
-
-      const thumbHeight = Math.max((clientHeight / scrollHeight) * trackHeight, minThumb)
-      const maxThumbTop = trackHeight - thumbHeight
-      const scrollRatio = scrollTop / (scrollHeight - clientHeight)
-      const thumbTop = trackPadding + maxThumbTop * scrollRatio
-
-      body.style.setProperty('--scrollbar-thumb-height', `${thumbHeight}px`)
-      body.style.setProperty('--scrollbar-thumb-top', `${thumbTop}px`)
-      body.style.setProperty('--scrollbar-visible', '1')
-    }
+    const handleScroll = () => updateScrollbar()
+    const handleResize = () => updateScrollbar()
 
     updateScrollbar()
-    body.addEventListener('scroll', updateScrollbar)
-    const resizeObserver = new ResizeObserver(updateScrollbar)
-    resizeObserver.observe(body)
-    const mutationObserver = new MutationObserver(updateScrollbar)
-    mutationObserver.observe(body, { childList: true, subtree: true, characterData: true })
-    window.addEventListener('resize', updateScrollbar)
+    body.addEventListener('scroll', handleScroll)
+    window.addEventListener('resize', handleResize)
 
     return () => {
-      body.removeEventListener('scroll', updateScrollbar)
-      resizeObserver.disconnect()
-      mutationObserver.disconnect()
-      window.removeEventListener('resize', updateScrollbar)
+      body.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleResize)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    updateScrollbar()
+  })
 
   if (!isOpen) return null
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Button, Modal, Card } from '../components/UI'
@@ -22,7 +22,7 @@ export const CategorySettings = () => {
     initialData: DEFAULT_CATEGORIES,
   })
 
-  const iconOptions = useMemo(() => ICON_OPTIONS, [])
+  const iconOptions = ICON_OPTIONS
 
   const openCreate = () => {
     setEditingCategory(null)

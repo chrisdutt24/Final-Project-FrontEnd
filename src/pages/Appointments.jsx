@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
@@ -31,10 +31,7 @@ export const Appointments = () => {
   const upcoming = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) >= now)
   const past = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) < now)
 
-  const appointmentFilters = useMemo(
-    () => categories.filter((category) => category.group === 'appointments'),
-    [categories]
-  )
+  const appointmentFilters = categories.filter((category) => category.group === 'appointments')
 
   const toggleFilter = (filter) => {
     setSelectedFilters((prev) =>

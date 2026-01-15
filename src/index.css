@@ -357,8 +357,6 @@ textarea {
   right: 16px;
   border-radius: 999px;
   pointer-events: none;
-  opacity: var(--scrollbar-visible, 1);
-  transition: opacity 0.2s ease;
 }
 
 .modal-body::before {

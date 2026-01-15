@@ -36,11 +36,11 @@ const storedCategories = loadJson(STORAGE_KEYS.categories, DEFAULT_CATEGORIES)
 const storedUser = loadJson(STORAGE_KEYS.user, null)
 
 const DUE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
-const PLACEHOLDER_DOCS = new Set([
+const PLACEHOLDER_DOCS = [
   'Internship Certificate.pdf',
   'internet_contract.pdf',
   'insurance_policy.pdf',
-])
+]
 
 const normalizeEntry = (entry) => {
   const normalized = { ...entry }
@@ -53,7 +53,7 @@ const normalizeEntry = (entry) => {
   return normalized
 }
 
-const LOCKED_CATEGORY_NAMES = new Set(DEFAULT_CATEGORIES.map((category) => category.name))
+const LOCKED_CATEGORY_NAMES = DEFAULT_CATEGORIES.map((category) => category.name)
 
 const normalizeCategory = (category) => {
   let name = category.name?.trim() || 'Untitled'
@@ -72,7 +72,7 @@ const normalizeCategory = (category) => {
     group,
     entryType,
     icon: category.icon || fallback?.icon || 'fa-tag',
-    locked: category.locked ?? LOCKED_CATEGORY_NAMES.has(name),
+    locked: category.locked ?? LOCKED_CATEGORY_NAMES.includes(name),
   }
 }
 
@@ -87,37 +87,41 @@ defaultCategories.forEach((category) => {
     categoriesChanged = true
   }
 })
-const defaultIds = new Set(defaultCategories.map((category) => category.id))
-const dedupedCategories = new Map()
+const isDefaultCategory = (category) =>
+  defaultCategories.some((item) => item.id === category.id)
+const dedupedCategories = []
 dbCategories.forEach((category) => {
   const key = category.name.toLowerCase()
-  const existing = dedupedCategories.get(key)
-  if (!existing) {
-    dedupedCategories.set(key, category)
+  const existingIndex = dedupedCategories.findIndex(
+    (item) => item.name.toLowerCase() === key
+  )
+  if (existingIndex === -1) {
+    dedupedCategories.push(category)
     return
   }
-  const existingIsDefault = defaultIds.has(existing.id)
-  const candidateIsDefault = defaultIds.has(category.id)
+  const existing = dedupedCategories[existingIndex]
+  const existingIsDefault = isDefaultCategory(existing)
+  const candidateIsDefault = isDefaultCategory(category)
   if (candidateIsDefault && !existingIsDefault) {
-    dedupedCategories.set(key, category)
+    dedupedCategories[existingIndex] = category
     categoriesChanged = true
-  } else if (!candidateIsDefault && !existingIsDefault && category.locked && !existing.locked) {
-    dedupedCategories.set(key, category)
+    return
+  }
+  if (!candidateIsDefault && !existingIsDefault && category.locked && !existing.locked) {
+    dedupedCategories[existingIndex] = category
     categoriesChanged = true
   }
 })
-dbCategories = Array.from(dedupedCategories.values())
+dbCategories = dedupedCategories
 if (Array.isArray(storedCategories) && storedCategories.length !== dbCategories.length) {
   categoriesChanged = true
 }
-const defaultOrder = new Map(
-  defaultCategories.map((category, index) => [category.name.toLowerCase(), index])
-)
+const defaultOrder = defaultCategories.map((category) => category.name.toLowerCase())
 dbCategories = [...dbCategories].sort((a, b) => {
-  const aIndex = defaultOrder.get(a.name.toLowerCase())
-  const bIndex = defaultOrder.get(b.name.toLowerCase())
-  const aIsDefault = aIndex !== undefined
-  const bIsDefault = bIndex !== undefined
+  const aIndex = defaultOrder.indexOf(a.name.toLowerCase())
+  const bIndex = defaultOrder.indexOf(b.name.toLowerCase())
+  const aIsDefault = aIndex !== -1
+  const bIsDefault = bIndex !== -1
   if (aIsDefault && bIsDefault) return aIndex - bIndex
   if (aIsDefault) return -1
   if (bIsDefault) return 1
@@ -194,7 +198,7 @@ let dbEntries = Array.isArray(storedEntries) ? [...storedEntries] : [...INITIAL_
 dbEntries = dbEntries.map(normalizeEntry)
 let dbDocuments = Array.isArray(storedDocuments) ? [...storedDocuments] : [...INITIAL_DOCUMENTS]
 const beforeDocsCount = dbDocuments.length
-dbDocuments = dbDocuments.filter((doc) => !PLACEHOLDER_DOCS.has(doc.filename))
+dbDocuments = dbDocuments.filter((doc) => !PLACEHOLDER_DOCS.includes(doc.filename))
 let currentUser =
   storedUser && typeof storedUser === 'object'
     ? storedUser

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
@@ -53,21 +53,11 @@ export const Overview = () => {
     queryFn: () => api.documents.list(5),
   })
 
-  const categoryMap = useMemo(
-    () => new Map(categories.map((category) => [category.name, category])),
-    [categories]
-  )
-  const contractCategories = useMemo(
-    () => categories.filter((category) => category.group === 'contracts'),
-    [categories]
-  )
-  const appointmentCategories = useMemo(
-    () => categories.filter((category) => category.group !== 'contracts'),
-    [categories]
-  )
+  const contractCategories = categories.filter((category) => category.group === 'contracts')
+  const appointmentCategories = categories.filter((category) => category.group !== 'contracts')
 
   const getEntryGroup = (entry) => {
-    const category = categoryMap.get(entry.category)
+    const category = categories.find((item) => item.name === entry.category)
     if (category?.group) return category.group
     if ([EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)) return 'contracts'
     if (

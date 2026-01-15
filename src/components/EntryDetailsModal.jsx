@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Modal, Button } from './UI'
 import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
@@ -60,16 +60,12 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     initialData: DEFAULT_CATEGORIES,
   })
 
-  const categoryMap = useMemo(
-    () => new Map(categories.map((cat) => [cat.name, cat])),
-    [categories]
-  )
-  const activeCategory = categoryMap.get(category) || categories[0]
+  const activeCategory = categories.find((cat) => cat.name === category) || categories[0]
   const isContractOrInsurance = activeCategory?.group === 'contracts'
 
   useEffect(() => {
     if (!entry) return
-    const entryCategory = categoryMap.get(entry.category)
+    const entryCategory = categories.find((cat) => cat.name === entry.category)
     const entryIsContractLike = entryCategory
       ? entryCategory.group === 'contracts'
       : [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
@@ -82,7 +78,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     setPortalUrl(entry.portalUrl || '')
     const entryDate = entryIsContractLike ? entry.expirationDate : entry.startAt
     setDateValue(getInputValue(entryDate || '', !entryIsContractLike))
-  }, [entry, categoryMap])
+  }, [entry, categories])
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -136,9 +132,10 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   }
 
   if (!entry) return null
-  const displayCategory = categoryMap.get(entry.category)?.name || entry.category
+  const entryCategory = categories.find((cat) => cat.name === entry.category)
+  const displayCategory = entryCategory?.name || entry.category
   const entryGroup =
-    categoryMap.get(entry.category)?.group ||
+    entryCategory?.group ||
     ([EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type) ? 'contracts' : 'appointments')
   const entryIsContract = entryGroup === 'contracts'
   const statusIsDue = entryIsContract && entry.status === EntryStatus.DUE

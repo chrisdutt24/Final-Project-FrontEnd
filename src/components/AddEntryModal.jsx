@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Button } from "./UI";
 import { DEFAULT_CATEGORIES } from "../constants";
 import { EntryStatus, EntryType } from "../types";
@@ -23,30 +23,25 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     initialData: DEFAULT_CATEGORIES,
   });
 
-  const categoryMap = useMemo(
-    () => new Map(categories.map((cat) => [cat.name, cat])),
-    [categories]
-  );
-  const defaultGroup = useMemo(() => {
-    const categoryMatch = defaultCategory ? categoryMap.get(defaultCategory) : null;
-    if (categoryMatch?.group) return categoryMatch.group;
+  const categoryMatch = defaultCategory
+    ? categories.find((cat) => cat.name === defaultCategory)
+    : null;
+  let defaultGroup = categoryMatch?.group || null;
+  if (!defaultGroup) {
     if (
       defaultCategory === "General" ||
       defaultCategory === "Contract" ||
       defaultCategory === "Contracts"
     ) {
-      return "contracts";
+      defaultGroup = "contracts";
+    } else if (defaultCategory === "Appointments") {
+      defaultGroup = "appointments";
     }
-    if (defaultCategory === "Appointments") return "appointments";
-    return null;
-  }, [defaultCategory, categoryMap]);
-  const availableCategories = useMemo(() => {
-    if (!categories.length) return [];
-    const targetGroup = defaultGroup || categories[0]?.group || "appointments";
-    return categories.filter((cat) => cat.group === targetGroup);
-  }, [categories, defaultGroup]);
+  }
+  const targetGroup = defaultGroup || categories[0]?.group || "appointments";
+  const availableCategories = categories.filter((cat) => cat.group === targetGroup);
   const activeCategory =
-    categoryMap.get(category) || availableCategories[0] || categories[0];
+    categories.find((cat) => cat.name === category) || availableCategories[0] || categories[0];
   const isContractOrInsurance = activeCategory?.group === "contracts";
 
   const mutation = useMutation({
