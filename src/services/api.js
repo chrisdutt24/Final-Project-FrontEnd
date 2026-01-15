@@ -33,7 +33,16 @@ const storedEntries = loadJson(STORAGE_KEYS.entries, INITIAL_ENTRIES)
 const storedDocuments = loadJson(STORAGE_KEYS.documents, INITIAL_DOCUMENTS)
 const storedUser = loadJson(STORAGE_KEYS.user, null)
 
+const normalizeEntry = (entry) => {
+  const normalized = { ...entry }
+  if (normalized.category === 'Insurance' || normalized.type === EntryType.INSURANCE) {
+    normalized.category = 'Contracts'
+  }
+  return normalized
+}
+
 let dbEntries = Array.isArray(storedEntries) ? [...storedEntries] : [...INITIAL_ENTRIES]
+dbEntries = dbEntries.map(normalizeEntry)
 let dbDocuments = Array.isArray(storedDocuments) ? [...storedDocuments] : [...INITIAL_DOCUMENTS]
 let currentUser =
   storedUser && typeof storedUser === 'object'
@@ -43,6 +52,7 @@ let currentUser =
 if (!storedUser) {
   saveJson(STORAGE_KEYS.user, currentUser)
 }
+saveJson(STORAGE_KEYS.entries, dbEntries)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -95,7 +105,7 @@ export const api = {
     },
     create: async (data) => {
       await sleep(500)
-      const newEntry = {
+      const newEntry = normalizeEntry({
         id: Math.random().toString(36).substr(2, 9),
         userId: currentUser?.id || 'anon',
         title: data.title || 'Untitled',
@@ -107,7 +117,7 @@ export const api = {
         notes: data.notes,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      }
+      })
       dbEntries.push(newEntry)
       saveJson(STORAGE_KEYS.entries, dbEntries)
       return newEntry
@@ -117,11 +127,11 @@ export const api = {
       let updatedEntry = null
       dbEntries = dbEntries.map((entry) => {
         if (entry.id !== id) return entry
-        updatedEntry = {
+        updatedEntry = normalizeEntry({
           ...entry,
           ...data,
           updatedAt: new Date().toISOString(),
-        }
+        })
         return updatedEntry
       })
       saveJson(STORAGE_KEYS.entries, dbEntries)

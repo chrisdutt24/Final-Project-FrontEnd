@@ -2,7 +2,6 @@ import { EntryType, EntryStatus } from './types'
 
 export const CATEGORIES = [
   'Contracts',
-  'Insurance',
   'Appointments',
   'Health',
   'Finance',
@@ -14,7 +13,6 @@ export const CATEGORIES = [
 
 export const CATEGORY_MAP = {
   Contracts: EntryType.CONTRACT,
-  Insurance: EntryType.INSURANCE,
   Appointments: EntryType.APPOINTMENT,
   Health: EntryType.HEALTH,
   Finance: EntryType.FINANCE,
@@ -40,7 +38,7 @@ export const INITIAL_ENTRIES = [
     id: '2',
     userId: 'demo-user',
     title: 'Health Insurance Premium',
-    category: 'Insurance',
+    category: 'Contracts',
     status: EntryStatus.DUE,
     type: EntryType.INSURANCE,
     expirationDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
@@ -84,7 +82,7 @@ export const INITIAL_ENTRIES = [
     id: '6',
     userId: 'demo-user',
     title: 'Car Insurance Renewal',
-    category: 'Insurance',
+    category: 'Contracts',
     status: EntryStatus.ACTIVE,
     type: EntryType.INSURANCE,
     expirationDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),

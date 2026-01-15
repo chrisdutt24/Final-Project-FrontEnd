@@ -63,8 +63,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     mutation.mutate();
   };
 
-  const isContractOrInsurance =
-    category === "Contracts" || category === "Insurance";
+  const isContractOrInsurance = category === "Contracts";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add New Entry">

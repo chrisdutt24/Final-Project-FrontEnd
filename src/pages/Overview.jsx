@@ -24,7 +24,9 @@ export const Overview = () => {
   })
 
   const activeContracts = entries.filter(
-    (entry) => entry.type === EntryType.CONTRACT && entry.status === EntryStatus.ACTIVE
+    (entry) =>
+      [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type) &&
+      entry.status === EntryStatus.ACTIVE
   ).length
 
   const fourteenDaysFromNow = new Date()
@@ -46,7 +48,9 @@ export const Overview = () => {
 
   const contractEntries = entries.filter(
     (entry) =>
-      entry.category === 'Contracts' || entry.type === EntryType.CONTRACT || entry.category === 'Insurance'
+      entry.category === 'Contracts' ||
+      entry.type === EntryType.CONTRACT ||
+      entry.type === EntryType.INSURANCE
   )
 
   const appointmentEntries = entries.filter(
@@ -111,7 +115,7 @@ export const Overview = () => {
         <div className="lg:col-span-8 space-y-8">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Contracts & Insurance</h2>
+              <h2 className="text-xl font-bold text-gray-900">Contracts</h2>
               <Button
                 onClick={() => {
                   setModalCategory('Contracts')

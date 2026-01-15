@@ -39,20 +39,25 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
 
   const queryClient = useQueryClient()
 
-  const isContractOrInsurance = useMemo(
-    () => category === 'Contracts' || category === 'Insurance',
-    [category]
-  )
+  const isContractOrInsurance = useMemo(() => category === 'Contracts', [category])
 
   useEffect(() => {
     if (!entry) return
+    const entryIsContractLike =
+      entry.category === 'Contracts' ||
+      entry.category === 'Insurance' ||
+      [EntryType.CONTRACT, EntryType.INSURANCE].includes(entry.type)
+    const normalizedCategory =
+      entry.category === 'Insurance' || entry.type === EntryType.INSURANCE
+        ? 'Contracts'
+        : entry.category || 'Contracts'
     setIsEditing(false)
     setTitle(entry.title || '')
-    setCategory(entry.category || 'Contracts')
+    setCategory(normalizedCategory)
     setStatus(entry.status || EntryStatus.ACTIVE)
     setNotes(entry.notes || '')
-    const entryDate = entry.expirationDate || entry.startAt || ''
-    setDateValue(getInputValue(entryDate, !(entry.category === 'Contracts' || entry.category === 'Insurance')))
+    const entryDate = entryIsContractLike ? entry.expirationDate : entry.startAt
+    setDateValue(getInputValue(entryDate || '', !entryIsContractLike))
   }, [entry])
 
   const updateMutation = useMutation({
@@ -97,6 +102,8 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   }
 
   if (!entry) return null
+  const displayCategory =
+    entry.category === 'Insurance' || entry.type === EntryType.INSURANCE ? 'Contracts' : entry.category
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Entry Details">
@@ -109,7 +116,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-400">Category</div>
-              <div className="text-gray-800">{entry.category || '—'}</div>
+              <div className="text-gray-800">{displayCategory || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-400">Status</div>
@@ -117,12 +124,12 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-400">
-                {entry.category === 'Contracts' || entry.category === 'Insurance'
+                {displayCategory === 'Contracts'
                   ? 'Expiration'
                   : 'Date & Time'}
               </div>
               <div className="text-gray-800">
-                {entry.category === 'Contracts' || entry.category === 'Insurance'
+                {displayCategory === 'Contracts'
                   ? formatDisplayDate(entry.expirationDate, false)
                   : formatDisplayDate(entry.startAt, true)}
               </div>
