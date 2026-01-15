@@ -4,12 +4,14 @@ import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
 import { AddEntryModal } from '../components/AddEntryModal'
 import { EntryDetailsModal } from '../components/EntryDetailsModal'
+import { EntryStatus } from '../types'
 
 export const Appointments = () => {
   const [isCalendarView, setIsCalendarView] = useState(false)
   const [selectedFilters, setSelectedFilters] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState(null)
+  const [showArchive, setShowArchive] = useState(false)
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['entries', 'appointments', selectedFilters],
@@ -17,8 +19,10 @@ export const Appointments = () => {
   })
 
   const now = new Date()
-  const upcoming = entries.filter((entry) => entry.startAt && new Date(entry.startAt) >= now)
-  const past = entries.filter((entry) => entry.startAt && new Date(entry.startAt) < now)
+  const activeEntries = entries.filter((entry) => entry.status !== EntryStatus.DONE)
+  const archivedEntries = entries.filter((entry) => entry.status === EntryStatus.DONE)
+  const upcoming = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) >= now)
+  const past = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) < now)
 
   const filters = ['Events', 'Friends', 'Work', 'Health', 'Finance', 'Personal']
 
@@ -60,7 +64,7 @@ export const Appointments = () => {
           <Card className="min-h-[400px]">
             {isLoading ? (
               <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
-            ) : entries.length === 0 ? (
+            ) : activeEntries.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-400">
                 No appointments scheduled.
               </div>
@@ -152,6 +156,34 @@ export const Appointments = () => {
               )}
             </div>
           </Card>
+
+          {archivedEntries.length > 0 && (
+            <Card>
+              <button
+                className="w-full flex items-center justify-between text-xs text-gray-500"
+                onClick={() => setShowArchive((prev) => !prev)}
+              >
+                <span className="uppercase tracking-wide">Archive ({archivedEntries.length})</span>
+                <i className={`fa-solid fa-chevron-${showArchive ? 'up' : 'down'}`}></i>
+              </button>
+              {showArchive && (
+                <div className="mt-4 space-y-3">
+                  {archivedEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                      onClick={() => setSelectedEntry(entry)}
+                    >
+                      <span className="truncate">{entry.title}</span>
+                      <span className="text-[10px] text-gray-400 uppercase">
+                        {entry.startAt ? new Date(entry.startAt).toLocaleDateString() : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       </div>
 

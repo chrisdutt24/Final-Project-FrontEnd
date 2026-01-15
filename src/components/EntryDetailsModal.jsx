@@ -81,6 +81,14 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     },
   })
 
+  const markDoneMutation = useMutation({
+    mutationFn: async () => api.entries.update(entry.id, { status: EntryStatus.DONE }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entries'] })
+      onClose()
+    },
+  })
+
   const deleteMutation = useMutation({
     mutationFn: async () => api.entries.delete(entry.id),
     onSuccess: () => {
@@ -104,6 +112,9 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   if (!entry) return null
   const displayCategory =
     entry.category === 'Insurance' || entry.type === EntryType.INSURANCE ? 'Contracts' : entry.category
+  const statusIsDue =
+    displayCategory === 'Contracts' && entry.status === EntryStatus.DUE
+  const statusClasses = statusIsDue ? 'text-red-600 font-semibold' : 'text-gray-800'
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Entry Details">
@@ -120,7 +131,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-400">Status</div>
-              <div className="text-gray-800">{entry.status || '—'}</div>
+              <div className={statusClasses}>{entry.status || '—'}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-400">
@@ -128,7 +139,13 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
                   ? 'Expiration'
                   : 'Date & Time'}
               </div>
-              <div className="text-gray-800">
+              <div
+                className={
+                  displayCategory === 'Contracts'
+                    ? 'text-yellow-700 font-semibold'
+                    : 'text-gray-800'
+                }
+              >
                 {displayCategory === 'Contracts'
                   ? formatDisplayDate(entry.expirationDate, false)
                   : formatDisplayDate(entry.startAt, true)}
@@ -148,9 +165,20 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             </div>
           </div>
           <div className="flex items-center justify-between pt-2">
-            <Button variant="secondary" onClick={() => setIsEditing(true)}>
-              Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+              {entry.status !== EntryStatus.DONE && (
+                <Button
+                  variant="ghost"
+                  onClick={() => markDoneMutation.mutate()}
+                  disabled={markDoneMutation.isPending}
+                >
+                  {markDoneMutation.isPending ? 'Saving...' : 'Mark as done'}
+                </Button>
+              )}
+            </div>
             <Button variant="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
