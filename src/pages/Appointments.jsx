@@ -3,11 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
 import { AddEntryModal } from '../components/AddEntryModal'
+import { EntryDetailsModal } from '../components/EntryDetailsModal'
 
 export const Appointments = () => {
   const [isCalendarView, setIsCalendarView] = useState(false)
   const [selectedFilters, setSelectedFilters] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedEntry, setSelectedEntry] = useState(null)
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['entries', 'appointments', selectedFilters],
@@ -95,6 +97,7 @@ export const Appointments = () => {
                   <div
                     key={entry.id}
                     className="py-4 flex items-center justify-between hover:bg-gray-50 px-2 rounded cursor-pointer group"
+                    onClick={() => setSelectedEntry(entry)}
                   >
                     <div>
                       <h4 className="font-medium text-gray-900">{entry.title}</h4>
@@ -156,6 +159,11 @@ export const Appointments = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         defaultCategory="Appointments"
+      />
+      <EntryDetailsModal
+        isOpen={Boolean(selectedEntry)}
+        onClose={() => setSelectedEntry(null)}
+        entry={selectedEntry}
       />
     </div>
   )

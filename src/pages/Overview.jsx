@@ -5,10 +5,12 @@ import { Card, Button } from '../components/UI'
 import { CATEGORIES } from '../constants'
 import { EntryType, EntryStatus } from '../types'
 import { AddEntryModal } from '../components/AddEntryModal'
+import { EntryDetailsModal } from '../components/EntryDetailsModal'
 
 export const Overview = () => {
   const [selectedCategories, setSelectedCategories] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedEntry, setSelectedEntry] = useState(null)
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['entries', selectedCategories],
@@ -65,7 +67,10 @@ export const Overview = () => {
   }
 
   const EntryRow = ({ entry }) => (
-    <div className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer">
+    <div
+      className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
+      onClick={() => setSelectedEntry(entry)}
+    >
       <div>
         <h4 className="font-medium text-gray-900">{entry.title}</h4>
         <p className="text-xs text-gray-500">
@@ -188,6 +193,11 @@ export const Overview = () => {
       </div>
 
       <AddEntryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <EntryDetailsModal
+        isOpen={Boolean(selectedEntry)}
+        onClose={() => setSelectedEntry(null)}
+        entry={selectedEntry}
+      />
     </div>
   )
 }

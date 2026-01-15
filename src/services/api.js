@@ -112,6 +112,21 @@ export const api = {
       saveJson(STORAGE_KEYS.entries, dbEntries)
       return newEntry
     },
+    update: async (id, data) => {
+      await sleep(400)
+      let updatedEntry = null
+      dbEntries = dbEntries.map((entry) => {
+        if (entry.id !== id) return entry
+        updatedEntry = {
+          ...entry,
+          ...data,
+          updatedAt: new Date().toISOString(),
+        }
+        return updatedEntry
+      })
+      saveJson(STORAGE_KEYS.entries, dbEntries)
+      return updatedEntry
+    },
     delete: async (id) => {
       await sleep(300)
       dbEntries = dbEntries.filter((entry) => entry.id !== id)
