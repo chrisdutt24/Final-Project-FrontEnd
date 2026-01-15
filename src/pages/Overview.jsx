@@ -10,6 +10,7 @@ import { EntryDetailsModal } from '../components/EntryDetailsModal'
 export const Overview = () => {
   const [selectedCategories, setSelectedCategories] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalCategory, setModalCategory] = useState('Contracts')
   const [selectedEntry, setSelectedEntry] = useState(null)
 
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
@@ -111,7 +112,14 @@ export const Overview = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Contracts & Insurance</h2>
-              <Button onClick={() => setIsModalOpen(true)}>+ Add entry</Button>
+              <Button
+                onClick={() => {
+                  setModalCategory('Contracts')
+                  setIsModalOpen(true)
+                }}
+              >
+                + Add entry
+              </Button>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               {entriesLoading ? (
@@ -133,6 +141,15 @@ export const Overview = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Appointments & Events</h2>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setModalCategory('Appointments')
+                  setIsModalOpen(true)
+                }}
+              >
+                + Add entry
+              </Button>
             </div>
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               {entriesLoading ? (
@@ -192,7 +209,11 @@ export const Overview = () => {
         </div>
       </div>
 
-      <AddEntryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AddEntryModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        defaultCategory={modalCategory}
+      />
       <EntryDetailsModal
         isOpen={Boolean(selectedEntry)}
         onClose={() => setSelectedEntry(null)}

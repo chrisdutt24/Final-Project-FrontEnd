@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Button } from "./UI";
 import { CATEGORIES, CATEGORY_MAP } from "../constants";
 import { EntryStatus, EntryType } from "../types";
@@ -47,6 +47,16 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
       setFile(null);
     },
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle("");
+    setCategory(defaultCategory || "Contracts");
+    setStatus(EntryStatus.ACTIVE);
+    setExpirationDate("");
+    setNotes("");
+    setFile(null);
+  }, [isOpen, defaultCategory]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
