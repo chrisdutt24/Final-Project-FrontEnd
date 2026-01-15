@@ -1,9 +1,48 @@
 import { EntryStatus, EntryType } from '../types'
 import { INITIAL_ENTRIES, INITIAL_DOCUMENTS } from '../constants'
 
-let dbEntries = [...INITIAL_ENTRIES]
-let dbDocuments = [...INITIAL_DOCUMENTS]
-let currentUser = { id: 'demo-user', email: 'demo@demo.com' }
+const STORAGE_KEYS = {
+  entries: 'lifeAdmin.entries',
+  documents: 'lifeAdmin.documents',
+  user: 'lifeAdmin.user',
+}
+
+const hasWindow = typeof window !== 'undefined'
+
+const loadJson = (key, fallback) => {
+  if (!hasWindow) return fallback
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw)
+  } catch (error) {
+    return fallback
+  }
+}
+
+const saveJson = (key, value) => {
+  if (!hasWindow) return
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    // Ignore storage failures (private mode, quota exceeded).
+  }
+}
+
+const storedEntries = loadJson(STORAGE_KEYS.entries, INITIAL_ENTRIES)
+const storedDocuments = loadJson(STORAGE_KEYS.documents, INITIAL_DOCUMENTS)
+const storedUser = loadJson(STORAGE_KEYS.user, null)
+
+let dbEntries = Array.isArray(storedEntries) ? [...storedEntries] : [...INITIAL_ENTRIES]
+let dbDocuments = Array.isArray(storedDocuments) ? [...storedDocuments] : [...INITIAL_DOCUMENTS]
+let currentUser =
+  storedUser && typeof storedUser === 'object'
+    ? storedUser
+    : { id: 'demo-user', email: 'demo@demo.com' }
+
+if (!storedUser) {
+  saveJson(STORAGE_KEYS.user, currentUser)
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -16,15 +55,18 @@ export const api = {
     login: async (email) => {
       await sleep(500)
       currentUser = { id: Math.random().toString(36).substr(2, 9), email }
+      saveJson(STORAGE_KEYS.user, currentUser)
       return currentUser
     },
     logout: async () => {
       await sleep(200)
       currentUser = null
+      saveJson(STORAGE_KEYS.user, currentUser)
     },
     register: async (email) => {
       await sleep(500)
       currentUser = { id: Math.random().toString(36).substr(2, 9), email }
+      saveJson(STORAGE_KEYS.user, currentUser)
       return currentUser
     },
   },
@@ -67,11 +109,13 @@ export const api = {
         updatedAt: new Date().toISOString(),
       }
       dbEntries.push(newEntry)
+      saveJson(STORAGE_KEYS.entries, dbEntries)
       return newEntry
     },
     delete: async (id) => {
       await sleep(300)
       dbEntries = dbEntries.filter((entry) => entry.id !== id)
+      saveJson(STORAGE_KEYS.entries, dbEntries)
     },
   },
   documents: {
@@ -94,6 +138,7 @@ export const api = {
         uploadedAt: new Date().toISOString(),
       }
       dbDocuments.push(newDoc)
+      saveJson(STORAGE_KEYS.documents, dbDocuments)
       return newDoc
     },
   },
