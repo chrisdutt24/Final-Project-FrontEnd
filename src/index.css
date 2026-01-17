@@ -861,6 +861,27 @@ textarea {
   color: #6b7280;
 }
 
+.entry-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+}
+
+.entry-doc-sep {
+  margin: 0 3px 0 6px;
+  color: #6b7280;
+}
+
+.entry-doc-icon {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.entry-doc-text {
+  color: #6b7280;
+}
+
 .entry-link {
   color: #6b7280;
   text-decoration: underline;

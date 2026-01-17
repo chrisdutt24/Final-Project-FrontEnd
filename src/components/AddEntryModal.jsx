@@ -44,6 +44,14 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     categories.find((cat) => cat.name === category) || availableCategories[0] || categories[0];
   const isContractOrInsurance = activeCategory?.group === "contracts";
 
+  const readFileAsDataUrl = (selectedFile) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.readAsDataURL(selectedFile);
+    });
+
   const mutation = useMutation({
     mutationFn: async () => {
       const type = activeCategory?.entryType || EntryType.PERSONAL;
@@ -59,7 +67,12 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         notes,
       });
       if (file) {
-        await api.documents.create(entry.id, file.name);
+        const dataUrl = await readFileAsDataUrl(file);
+        await api.documents.create(entry.id, {
+          name: file.name,
+          type: file.type,
+          dataUrl,
+        });
       }
       return entry;
     },

@@ -112,10 +112,16 @@ const loadDocumentsForUser = (userId) => {
     saveJson(key, documents)
   }
   const filtered = documents.filter((doc) => !PLACEHOLDER_DOCS.includes(doc.filename))
-  return filtered.map((doc) => ({
-    ...doc,
-    userId: doc.userId || userId,
-  }))
+  return filtered.map((doc) => {
+    const nextDoc = {
+      ...doc,
+      userId: doc.userId || userId,
+    }
+    if (nextDoc.fileUrl && nextDoc.fileUrl.includes('https://example.com/documents/')) {
+      nextDoc.fileUrl = ''
+    }
+    return nextDoc
+  })
 }
 
 const buildCategories = (rawCategories) => {
@@ -440,18 +446,22 @@ export const api = {
       )
       return limit ? sorted.slice(0, limit) : sorted
     },
-    create: async (entryId, filename) => {
+    create: async (entryId, file) => {
       await sleep(400)
       if (!currentUser) {
         throw new Error('Please log in first')
       }
+      const isFileObject = file && typeof file === 'object'
+      const filename = isFileObject ? file.name : file
+      const fileUrl = isFileObject ? file.dataUrl : ''
+      const mimeType = isFileObject ? file.type || 'application/octet-stream' : 'application/octet-stream'
       const newDoc = {
         id: Math.random().toString(36).substr(2, 9),
         userId: currentUser.id,
         entryId,
-        filename,
-        fileUrl: `https://example.com/documents/${encodeURIComponent(filename)}`,
-        mimeType: 'application/octet-stream',
+        filename: filename || 'document',
+        fileUrl: fileUrl || '',
+        mimeType,
         uploadedAt: new Date().toISOString(),
       }
       dbDocuments.push(newDoc)
