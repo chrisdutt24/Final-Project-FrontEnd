@@ -133,27 +133,21 @@ export const CategorySettings = () => {
               </div>
             </div>
             <div className="category-actions">
-              {category.locked ? (
-                <span className="category-lock">Default</span>
-              ) : (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="category-action"
-                    onClick={() => openEdit(category)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    className="category-action"
-                    onClick={() => handleDelete(category)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    Delete
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="ghost"
+                className="category-action"
+                onClick={() => openEdit(category)}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="danger"
+                className="category-action"
+                onClick={() => handleDelete(category)}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
             </div>
           </div>
         ))}

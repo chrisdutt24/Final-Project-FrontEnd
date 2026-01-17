@@ -1,11 +1,16 @@
 import React from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { Overview } from './pages/Overview'
 import { Appointments } from './pages/Appointments'
 import { CategorySettings } from './pages/CategorySettings'
+import { Auth } from './pages/Auth'
+import { api } from './services/api'
 
 function App() {
+  const { data: user, isLoading } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
+
   const SettingsPlaceholder = ({ title }) => (
     <div className="settings">
       <h1 className="settings-title">{title}</h1>
@@ -15,6 +20,20 @@ function App() {
       </div>
     </div>
   )
+
+  if (isLoading) {
+    return (
+      <div className="app-shell">
+        <main className="app-main">
+          <div className="list-state">Loading...</div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Auth />
+  }
 
   return (
     <div className="app-shell">

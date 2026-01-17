@@ -1,69 +1,58 @@
-import React, { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Modal, Button } from './UI'
+import { Button } from './UI'
 
 export const Navbar = () => {
-  const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false)
   const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const dropdownRef = useRef(null)
 
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   const { data: user } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
 
-  const loginMutation = useMutation({
-    mutationFn: (inputEmail) => api.auth.login(inputEmail),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] })
-      setIsLoginModalOpen(false)
-      setIsLoginDropdownOpen(false)
-    },
-  })
-
-  const registerMutation = useMutation({
-    mutationFn: (inputEmail) => api.auth.register(inputEmail),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user'] })
-      setIsRegisterModalOpen(false)
-      setIsLoginDropdownOpen(false)
-    },
-  })
+  useEffect(() => {
+    if (!isSettingsDropdownOpen) return
+    const handleClickOutside = (event) => {
+      if (!dropdownRef.current) return
+      if (!dropdownRef.current.contains(event.target)) {
+        setIsSettingsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [isSettingsDropdownOpen])
 
   const logoutMutation = useMutation({
     mutationFn: api.auth.logout,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] })
+      queryClient.invalidateQueries({ queryKey: ['entries'] })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
       setIsSettingsDropdownOpen(false)
       navigate('/')
     },
   })
 
-  const handleLogin = (event) => {
-    event.preventDefault()
-    loginMutation.mutate(email)
-  }
-
-  const handleRegister = (event) => {
-    event.preventDefault()
-    registerMutation.mutate(email)
-  }
+  if (!user) return null
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
         <div className="navbar-left">
-          <div className="navbar-brand">
+          <Link to="/" className="navbar-brand">
             <div className="navbar-logo">
               <i className="fa-solid fa-box"></i>
             </div>
             <span className="navbar-title">LifeSync</span>
-          </div>
+          </Link>
           <div className="navbar-links">
             <NavLink
               to="/"
@@ -85,52 +74,19 @@ export const Navbar = () => {
         </div>
 
         <div className="navbar-actions">
-          <div className="navbar-dropdown">
-            <button
-              onClick={() => {
-                setIsLoginDropdownOpen(!isLoginDropdownOpen)
-                setIsSettingsDropdownOpen(false)
-              }}
-              className="navbar-dropdown-button"
-            >
-              {user ? user.email : 'Login'}
-              <i className="fa-solid fa-chevron-down navbar-dropdown-icon"></i>
-            </button>
+          <div className="navbar-user-email">{user.email}</div>
+          <Button
+            variant="secondary"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+          >
+            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+          </Button>
 
-            {isLoginDropdownOpen && (
-              <div className="dropdown-menu dropdown-menu--login">
-                {!user ? (
-                  <>
-                    <button
-                      onClick={() => setIsLoginModalOpen(true)}
-                      className="dropdown-item"
-                    >
-                      Login
-                    </button>
-                    <button
-                      onClick={() => setIsRegisterModalOpen(true)}
-                      className="dropdown-item"
-                    >
-                      Create Account
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => logoutMutation.mutate()}
-                    className="dropdown-item dropdown-item--danger"
-                  >
-                    Logout
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="navbar-dropdown">
+          <div className="navbar-dropdown" ref={dropdownRef}>
             <button
               onClick={() => {
                 setIsSettingsDropdownOpen(!isSettingsDropdownOpen)
-                setIsLoginDropdownOpen(false)
               }}
               className="settings-button"
             >
@@ -141,37 +97,55 @@ export const Navbar = () => {
               <div className="dropdown-menu dropdown-menu--settings">
                 <div className="dropdown-header">Settings</div>
                 <button
-                  onClick={() => navigate('/settings/account')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/account')
+                  }}
                   className="dropdown-item"
                 >
                   Account
                 </button>
                 <button
-                  onClick={() => navigate('/settings/notifications')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/notifications')
+                  }}
                   className="dropdown-item"
                 >
                   Notifications
                 </button>
                 <button
-                  onClick={() => navigate('/settings/dates')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/dates')
+                  }}
                   className="dropdown-item"
                 >
                   Dates & Times
                 </button>
                 <button
-                  onClick={() => navigate('/settings/categories')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/categories')
+                  }}
                   className="dropdown-item"
                 >
                   Edit Categories
                 </button>
                 <button
-                  onClick={() => navigate('/settings/storage')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/storage')
+                  }}
                   className="dropdown-item"
                 >
                   Storage & Documents
                 </button>
                 <button
-                  onClick={() => navigate('/settings/privacy')}
+                  onClick={() => {
+                    setIsSettingsDropdownOpen(false)
+                    navigate('/settings/privacy')
+                  }}
                   className="dropdown-item"
                 >
                   Privacy & Security
@@ -189,66 +163,6 @@ export const Navbar = () => {
           </div>
         </div>
       </div>
-
-      <Modal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} title="Login">
-        <form onSubmit={handleLogin} className="form">
-          <div className="form-group">
-            <label className="form-label">E-Mail</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="form-input"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="form-input"
-            />
-          </div>
-          <Button type="submit" className="btn-block" disabled={loginMutation.isPending}>
-            {loginMutation.isPending ? 'Logging in...' : 'Login'}
-          </Button>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={isRegisterModalOpen}
-        onClose={() => setIsRegisterModalOpen(false)}
-        title="Create Account"
-      >
-        <form onSubmit={handleRegister} className="form">
-          <div className="form-group">
-            <label className="form-label">E-Mail</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="form-input"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="form-input"
-            />
-          </div>
-          <Button type="submit" className="btn-block" disabled={registerMutation.isPending}>
-            {registerMutation.isPending ? 'Creating...' : 'Create'}
-          </Button>
-        </form>
-      </Modal>
     </nav>
   )
 }

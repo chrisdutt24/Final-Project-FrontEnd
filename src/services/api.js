@@ -1,10 +1,11 @@
 import { EntryStatus, EntryType } from '../types'
-import { DEFAULT_CATEGORIES, INITIAL_ENTRIES, INITIAL_DOCUMENTS } from '../constants'
+import { DEFAULT_CATEGORIES } from '../constants'
 
 const STORAGE_KEYS = {
   entries: 'lifeAdmin.entries',
   documents: 'lifeAdmin.documents',
   user: 'lifeAdmin.user',
+  users: 'lifeAdmin.users',
   categories: 'lifeAdmin.categories',
 }
 
@@ -30,10 +31,15 @@ const saveJson = (key, value) => {
   }
 }
 
-const storedEntries = loadJson(STORAGE_KEYS.entries, INITIAL_ENTRIES)
-const storedDocuments = loadJson(STORAGE_KEYS.documents, INITIAL_DOCUMENTS)
-const storedCategories = loadJson(STORAGE_KEYS.categories, DEFAULT_CATEGORIES)
 const storedUser = loadJson(STORAGE_KEYS.user, null)
+const storedUsers = loadJson(STORAGE_KEYS.users, [])
+
+const users = Array.isArray(storedUsers) ? storedUsers : []
+let currentUser = null
+if (storedUser && typeof storedUser === 'object') {
+  const match = users.find((user) => user.id === storedUser.id)
+  if (match) currentUser = match
+}
 
 const DUE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 const PLACEHOLDER_DOCS = [
@@ -76,59 +82,146 @@ const normalizeCategory = (category) => {
   }
 }
 
-let dbCategories = Array.isArray(storedCategories)
-  ? storedCategories.map(normalizeCategory)
-  : DEFAULT_CATEGORIES.map(normalizeCategory)
-let categoriesChanged = false
-const defaultCategories = DEFAULT_CATEGORIES.map(normalizeCategory)
-defaultCategories.forEach((category) => {
-  if (!dbCategories.some((item) => item.name.toLowerCase() === category.name.toLowerCase())) {
-    dbCategories.push(category)
-    categoriesChanged = true
+let dbEntries = []
+let dbDocuments = []
+let dbCategories = []
+
+const getUserKey = (key, userId) => `${key}.${userId}`
+
+const loadEntriesForUser = (userId) => {
+  const key = getUserKey(STORAGE_KEYS.entries, userId)
+  let entries = loadJson(key, null)
+  if (!Array.isArray(entries)) {
+    const legacy = loadJson(STORAGE_KEYS.entries, null)
+    entries = Array.isArray(legacy) ? legacy : []
+    saveJson(key, entries)
   }
-})
-const isDefaultCategory = (category) =>
-  defaultCategories.some((item) => item.id === category.id)
-const dedupedCategories = []
-dbCategories.forEach((category) => {
-  const key = category.name.toLowerCase()
-  const existingIndex = dedupedCategories.findIndex(
-    (item) => item.name.toLowerCase() === key
-  )
-  if (existingIndex === -1) {
-    dedupedCategories.push(category)
-    return
-  }
-  const existing = dedupedCategories[existingIndex]
-  const existingIsDefault = isDefaultCategory(existing)
-  const candidateIsDefault = isDefaultCategory(category)
-  if (candidateIsDefault && !existingIsDefault) {
-    dedupedCategories[existingIndex] = category
-    categoriesChanged = true
-    return
-  }
-  if (!candidateIsDefault && !existingIsDefault && category.locked && !existing.locked) {
-    dedupedCategories[existingIndex] = category
-    categoriesChanged = true
-  }
-})
-dbCategories = dedupedCategories
-if (Array.isArray(storedCategories) && storedCategories.length !== dbCategories.length) {
-  categoriesChanged = true
+  return entries.map((entry) => {
+    const normalized = normalizeEntry(entry)
+    if (!normalized.userId) normalized.userId = userId
+    return normalized
+  })
 }
-const defaultOrder = defaultCategories.map((category) => category.name.toLowerCase())
-dbCategories = [...dbCategories].sort((a, b) => {
-  const aIndex = defaultOrder.indexOf(a.name.toLowerCase())
-  const bIndex = defaultOrder.indexOf(b.name.toLowerCase())
-  const aIsDefault = aIndex !== -1
-  const bIsDefault = bIndex !== -1
-  if (aIsDefault && bIsDefault) return aIndex - bIndex
-  if (aIsDefault) return -1
-  if (bIsDefault) return 1
-  return 0
-})
-if (categoriesChanged) {
-  saveJson(STORAGE_KEYS.categories, dbCategories)
+
+const loadDocumentsForUser = (userId) => {
+  const key = getUserKey(STORAGE_KEYS.documents, userId)
+  let documents = loadJson(key, null)
+  if (!Array.isArray(documents)) {
+    const legacy = loadJson(STORAGE_KEYS.documents, null)
+    documents = Array.isArray(legacy) ? legacy : []
+    saveJson(key, documents)
+  }
+  const filtered = documents.filter((doc) => !PLACEHOLDER_DOCS.includes(doc.filename))
+  return filtered.map((doc) => ({
+    ...doc,
+    userId: doc.userId || userId,
+  }))
+}
+
+const buildCategories = (rawCategories) => {
+  let categoriesChanged = false
+  let categories = Array.isArray(rawCategories)
+    ? rawCategories.map(normalizeCategory)
+    : DEFAULT_CATEGORIES.map(normalizeCategory)
+  const defaultCategories = DEFAULT_CATEGORIES.map(normalizeCategory)
+
+  defaultCategories.forEach((category) => {
+    const exists = categories.some(
+      (item) => item.name.toLowerCase() === category.name.toLowerCase()
+    )
+    if (!exists) {
+      categories.push(category)
+      categoriesChanged = true
+    }
+  })
+
+  const deduped = []
+  categories.forEach((category) => {
+    const key = category.name.toLowerCase()
+    const existingIndex = deduped.findIndex(
+      (item) => item.name.toLowerCase() === key
+    )
+    if (existingIndex === -1) {
+      deduped.push(category)
+      return
+    }
+    const existing = deduped[existingIndex]
+    const existingIsDefault = defaultCategories.some((item) => item.id === existing.id)
+    const candidateIsDefault = defaultCategories.some((item) => item.id === category.id)
+    if (candidateIsDefault && !existingIsDefault) {
+      deduped[existingIndex] = category
+      categoriesChanged = true
+      return
+    }
+    if (!candidateIsDefault && !existingIsDefault && category.locked && !existing.locked) {
+      deduped[existingIndex] = category
+      categoriesChanged = true
+    }
+  })
+
+  if (deduped.length !== categories.length) {
+    categoriesChanged = true
+  }
+  categories = deduped
+
+  const defaultOrder = defaultCategories.map((category) => category.name.toLowerCase())
+  categories = [...categories].sort((a, b) => {
+    const aIndex = defaultOrder.indexOf(a.name.toLowerCase())
+    const bIndex = defaultOrder.indexOf(b.name.toLowerCase())
+    const aIsDefault = aIndex !== -1
+    const bIsDefault = bIndex !== -1
+    if (aIsDefault && bIsDefault) return aIndex - bIndex
+    if (aIsDefault) return -1
+    if (bIsDefault) return 1
+    return 0
+  })
+
+  return { categories, categoriesChanged }
+}
+
+const loadCategoriesForUser = (userId) => {
+  const key = getUserKey(STORAGE_KEYS.categories, userId)
+  let categories = loadJson(key, null)
+  if (!Array.isArray(categories)) {
+    const legacy = loadJson(STORAGE_KEYS.categories, null)
+    categories = Array.isArray(legacy) ? legacy : DEFAULT_CATEGORIES
+    saveJson(key, categories)
+  }
+  const result = buildCategories(categories)
+  if (result.categoriesChanged) {
+    saveJson(key, result.categories)
+  }
+  return result.categories
+}
+
+const loadUserData = (user) => {
+  if (!user) {
+    dbEntries = []
+    dbDocuments = []
+    dbCategories = DEFAULT_CATEGORIES.map(normalizeCategory)
+    return
+  }
+  dbEntries = loadEntriesForUser(user.id)
+  dbDocuments = loadDocumentsForUser(user.id)
+  dbCategories = loadCategoriesForUser(user.id)
+}
+
+const saveEntries = () => {
+  if (!currentUser) return
+  const key = getUserKey(STORAGE_KEYS.entries, currentUser.id)
+  saveJson(key, dbEntries)
+}
+
+const saveDocuments = () => {
+  if (!currentUser) return
+  const key = getUserKey(STORAGE_KEYS.documents, currentUser.id)
+  saveJson(key, dbDocuments)
+}
+
+const saveCategories = () => {
+  if (!currentUser) return
+  const key = getUserKey(STORAGE_KEYS.categories, currentUser.id)
+  saveJson(key, dbCategories)
 }
 
 const getCategoryByName = (name) => dbCategories.find((category) => category.name === name)
@@ -194,23 +287,9 @@ const getSortTimestamp = (entry) => {
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed
 }
 
-let dbEntries = Array.isArray(storedEntries) ? [...storedEntries] : [...INITIAL_ENTRIES]
-dbEntries = dbEntries.map(normalizeEntry)
-let dbDocuments = Array.isArray(storedDocuments) ? [...storedDocuments] : [...INITIAL_DOCUMENTS]
-const beforeDocsCount = dbDocuments.length
-dbDocuments = dbDocuments.filter((doc) => !PLACEHOLDER_DOCS.includes(doc.filename))
-let currentUser =
-  storedUser && typeof storedUser === 'object'
-    ? storedUser
-    : { id: 'demo-user', email: 'demo@demo.com' }
-
-if (!storedUser) {
+loadUserData(currentUser)
+if (currentUser) {
   saveJson(STORAGE_KEYS.user, currentUser)
-}
-saveJson(STORAGE_KEYS.entries, dbEntries)
-saveJson(STORAGE_KEYS.categories, dbCategories)
-if (dbDocuments.length !== beforeDocsCount) {
-  saveJson(STORAGE_KEYS.documents, dbDocuments)
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -221,27 +300,56 @@ export const api = {
       await sleep(300)
       return currentUser
     },
-    login: async (email) => {
+    login: async (email, password) => {
       await sleep(500)
-      currentUser = { id: Math.random().toString(36).substr(2, 9), email }
+      if (!email || !password) {
+        throw new Error('Email and password are required')
+      }
+      const user = users.find(
+        (item) => item.email.toLowerCase() === email.toLowerCase()
+      )
+      if (!user) {
+        throw new Error('Account not found')
+      }
+      if (user.password !== password) {
+        throw new Error('Wrong password')
+      }
+      currentUser = { id: user.id, email: user.email }
       saveJson(STORAGE_KEYS.user, currentUser)
+      loadUserData(currentUser)
       return currentUser
     },
     logout: async () => {
       await sleep(200)
       currentUser = null
       saveJson(STORAGE_KEYS.user, currentUser)
+      loadUserData(currentUser)
     },
-    register: async (email) => {
+    register: async (email, password) => {
       await sleep(500)
-      currentUser = { id: Math.random().toString(36).substr(2, 9), email }
-      saveJson(STORAGE_KEYS.user, currentUser)
-      return currentUser
+      if (!email || !password) {
+        throw new Error('Email and password are required')
+      }
+      const exists = users.some(
+        (item) => item.email.toLowerCase() === email.toLowerCase()
+      )
+      if (exists) {
+        throw new Error('Account already exists')
+      }
+      const newUser = {
+        id: Math.random().toString(36).substr(2, 9),
+        email,
+        password,
+      }
+      users.push(newUser)
+      saveJson(STORAGE_KEYS.users, users)
+      return { id: newUser.id, email: newUser.email }
     },
   },
   entries: {
     list: async (filters = {}) => {
       await sleep(400)
+      if (!currentUser) return []
       let changed = false
       const nextEntries = dbEntries.map((entry) => {
         const updated = applyAppointmentArchive(applyDueStatus(entry))
@@ -250,7 +358,7 @@ export const api = {
       })
       if (changed) {
         dbEntries = nextEntries
-        saveJson(STORAGE_KEYS.entries, dbEntries)
+        saveEntries()
       }
       let results = [...dbEntries]
       if (filters.category && filters.category.length > 0) {
@@ -271,9 +379,12 @@ export const api = {
     },
     create: async (data) => {
       await sleep(500)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       const newEntry = normalizeEntry({
         id: Math.random().toString(36).substr(2, 9),
-        userId: currentUser?.id || 'anon',
+        userId: currentUser.id,
         title: data.title || 'Untitled',
         category: data.category || 'Personal',
         status: data.status || EntryStatus.ACTIVE,
@@ -287,11 +398,14 @@ export const api = {
         updatedAt: new Date().toISOString(),
       })
       dbEntries.push(newEntry)
-      saveJson(STORAGE_KEYS.entries, dbEntries)
+      saveEntries()
       return newEntry
     },
     update: async (id, data) => {
       await sleep(400)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       let updatedEntry = null
       dbEntries = dbEntries.map((entry) => {
         if (entry.id !== id) return entry
@@ -303,20 +417,24 @@ export const api = {
         })
         return updatedEntry
       })
-      saveJson(STORAGE_KEYS.entries, dbEntries)
+      saveEntries()
       return updatedEntry
     },
     delete: async (id) => {
       await sleep(300)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       dbEntries = dbEntries.filter((entry) => entry.id !== id)
       dbDocuments = dbDocuments.filter((doc) => doc.entryId !== id)
-      saveJson(STORAGE_KEYS.entries, dbEntries)
-      saveJson(STORAGE_KEYS.documents, dbDocuments)
+      saveEntries()
+      saveDocuments()
     },
   },
   documents: {
     list: async (limit) => {
       await sleep(300)
+      if (!currentUser) return []
       const sorted = [...dbDocuments].sort(
         (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
       )
@@ -324,9 +442,12 @@ export const api = {
     },
     create: async (entryId, filename) => {
       await sleep(400)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       const newDoc = {
         id: Math.random().toString(36).substr(2, 9),
-        userId: currentUser?.id || 'anon',
+        userId: currentUser.id,
         entryId,
         filename,
         fileUrl: `https://example.com/documents/${encodeURIComponent(filename)}`,
@@ -334,17 +455,21 @@ export const api = {
         uploadedAt: new Date().toISOString(),
       }
       dbDocuments.push(newDoc)
-      saveJson(STORAGE_KEYS.documents, dbDocuments)
+      saveDocuments()
       return newDoc
     },
   },
   categories: {
     list: async () => {
       await sleep(200)
+      if (!currentUser) return DEFAULT_CATEGORIES.map(normalizeCategory)
       return [...dbCategories]
     },
     create: async (data) => {
       await sleep(300)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       const name = data.name?.trim()
       if (!name) throw new Error('Name is required')
       if (dbCategories.some((category) => category.name.toLowerCase() === name.toLowerCase())) {
@@ -360,14 +485,16 @@ export const api = {
         locked: false,
       })
       dbCategories.push(newCategory)
-      saveJson(STORAGE_KEYS.categories, dbCategories)
+      saveCategories()
       return newCategory
     },
     update: async (id, data) => {
       await sleep(300)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       const target = dbCategories.find((category) => category.id === id)
       if (!target) throw new Error('Category not found')
-      if (target.locked) throw new Error('Category is locked')
       const nextName = data.name?.trim() || target.name
       if (
         dbCategories.some(
@@ -403,18 +530,20 @@ export const api = {
               }
             : entry
         )
-        saveJson(STORAGE_KEYS.entries, dbEntries)
+        saveEntries()
       }
-      saveJson(STORAGE_KEYS.categories, dbCategories)
+      saveCategories()
       return dbCategories.find((category) => category.id === id)
     },
     delete: async (id) => {
       await sleep(300)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
       const target = dbCategories.find((category) => category.id === id)
       if (!target) throw new Error('Category not found')
-      if (target.locked) throw new Error('Category is locked')
       dbCategories = dbCategories.filter((category) => category.id !== id)
-      saveJson(STORAGE_KEYS.categories, dbCategories)
+      saveCategories()
       const fallback = getCategoryByName('Personal') || dbCategories[0]
       if (fallback) {
         dbEntries = dbEntries.map((entry) =>
@@ -427,7 +556,7 @@ export const api = {
               }
             : entry
         )
-        saveJson(STORAGE_KEYS.entries, dbEntries)
+        saveEntries()
       }
       return true
     },

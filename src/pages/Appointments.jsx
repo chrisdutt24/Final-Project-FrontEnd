@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Card, Button } from '../components/UI'
@@ -8,11 +8,11 @@ import { EntryStatus } from '../types'
 import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
 
 export const Appointments = () => {
-  const [isCalendarView, setIsCalendarView] = useState(false)
+  const [isCalendarView, setIsCalendarView] = useState(true)
   const [selectedFilters, setSelectedFilters] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState(null)
-  const [showArchive, setShowArchive] = useState(false)
+  const [currentDate, setCurrentDate] = useState(new Date())
 
   const { data: categories = DEFAULT_CATEGORIES } = useQuery({
     queryKey: ['categories'],
@@ -25,13 +25,30 @@ export const Appointments = () => {
     queryFn: () => api.entries.list({ onlyAppointments: true, category: selectedFilters }),
   })
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date())
+    }, 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const now = new Date()
   const activeEntries = entries.filter((entry) => entry.status !== EntryStatus.DONE)
-  const archivedEntries = entries.filter((entry) => entry.status === EntryStatus.DONE)
   const upcoming = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) >= now)
-  const past = activeEntries.filter((entry) => entry.startAt && new Date(entry.startAt) < now)
+  const past = entries.filter(
+    (entry) => entry.startAt && new Date(entry.startAt) < now
+  )
 
   const appointmentFilters = categories.filter((category) => category.group === 'appointments')
+
+  const formatDateTime = (value) =>
+    new Date(value).toLocaleString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
 
   const toggleFilter = (filter) => {
     setSelectedFilters((prev) =>
@@ -39,25 +56,47 @@ export const Appointments = () => {
     )
   }
 
-  const groupedAppointments = upcoming.reduce((acc, entry) => {
-    const date = entry.startAt ? new Date(entry.startAt).toLocaleDateString() : 'No Date'
-    if (!acc[date]) acc[date] = []
-    acc[date].push(entry)
-    return acc
-  }, {})
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ]
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
+  const firstDayOfMonth = new Date(year, month, 1)
+  const lastDayOfMonth = new Date(year, month + 1, 0)
+  const daysInMonth = lastDayOfMonth.getDate()
+  const startOffset = (firstDayOfMonth.getDay() + 6) % 7
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7
+
+  const calendarEntries = activeEntries.filter((entry) => entry.startAt)
+  const calendarMap = {}
+  calendarEntries.forEach((entry) => {
+    const date = new Date(entry.startAt)
+    if (date.getFullYear() !== year || date.getMonth() !== month) return
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    if (!calendarMap[key]) calendarMap[key] = []
+    calendarMap[key].push(entry)
+  })
+  Object.keys(calendarMap).forEach((key) => {
+    calendarMap[key].sort((a, b) => new Date(a.startAt) - new Date(b.startAt))
+  })
 
   return (
     <div className="appointments">
       <div className="appointments-header">
         <h1 className="appointments-title">Appointments</h1>
-        <div className="appointments-badges">
-          <div className="badge">
-            {upcoming.length} upcoming
-          </div>
-          <div className="badge">
-            {entries.length} in total
-          </div>
-        </div>
         <div className="appointments-actions">
           <Button variant="secondary" onClick={() => setIsCalendarView(!isCalendarView)}>
             {isCalendarView ? 'Change to list view' : 'Change to calendar view'}
@@ -76,66 +115,99 @@ export const Appointments = () => {
                 No appointments scheduled.
               </div>
             ) : isCalendarView ? (
-              <div className="calendar-list">
-                {Object.entries(groupedAppointments).map(([date, appts]) => (
-                  <div key={date}>
-                    <h3 className="calendar-title">{date}</h3>
-                    <div className="calendar-items">
-                      {appts.map((appt) => (
-                        <div
-                          key={appt.id}
-                          className="calendar-item"
-                        >
-                          <div>
-                            <span className="calendar-time">
-                              {new Date(appt.startAt).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                            <span className="calendar-name">{appt.title}</span>
-                          </div>
-                          <span className="calendar-category">
-                            <i
-                              className={`fa-solid ${getCategoryIcon(categories, appt.category)} category-icon`}
-                            ></i>
-                            {appt.category}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              <div className="calendar">
+                <div className="calendar-header">
+                  <h3 className="calendar-month">
+                    {monthNames[month]} {year}
+                  </h3>
+                  <div className="calendar-today">
+                    Today: {now.toLocaleDateString()}
                   </div>
-                ))}
+                </div>
+                <div className="calendar-weekdays">
+                  {weekDays.map((day) => (
+                    <div key={day} className="calendar-weekday">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="calendar-grid">
+                  {Array.from({ length: totalCells }).map((_, index) => {
+                    const dayNumber = index - startOffset + 1
+                    const isCurrentMonth = dayNumber >= 1 && dayNumber <= daysInMonth
+                    const isToday =
+                      isCurrentMonth &&
+                      dayNumber === now.getDate() &&
+                      month === now.getMonth() &&
+                      year === now.getFullYear()
+                    const key = `${year}-${month + 1}-${dayNumber}`
+                    const dayItems = isCurrentMonth ? calendarMap[key] || [] : []
+                    return (
+                      <div
+                        key={`${month}-${index}`}
+                        className={`calendar-cell${
+                          isCurrentMonth ? '' : ' calendar-cell--muted'
+                        }${isToday ? ' calendar-cell--today' : ''}`}
+                      >
+                        <div className="calendar-date">{isCurrentMonth ? dayNumber : ''}</div>
+                        <div className="calendar-events">
+                          {dayItems.map((item) => (
+                            <button
+                              key={item.id}
+                              className="calendar-event"
+                              onClick={() => setSelectedEntry(item)}
+                            >
+                              <span className="calendar-event-time">
+                                {new Date(item.startAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              <span className="calendar-event-title">{item.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             ) : (
-              <div className="appointment-list">
-                {upcoming.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="appointment-row"
-                    onClick={() => setSelectedEntry(entry)}
-                  >
-                    <div>
-                      <h4 className="appointment-row-title">{entry.title}</h4>
-                      <p className="appointment-row-meta">
-                        {entry.startAt
-                          ? new Date(entry.startAt).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })
-                          : 'No date'}{' '}
-                        •{' '}
-                        <span className="category-inline">
-                          <i
-                            className={`fa-solid ${getCategoryIcon(categories, entry.category)} category-icon`}
-                          ></i>
-                          {entry.category}
-                        </span>
-                      </p>
+              <div className="entry-list">
+                <div className="list-rows">
+                  {upcoming.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="entry-row"
+                      onClick={() => setSelectedEntry(entry)}
+                    >
+                      <div className="entry-main">
+                        <h4 className="entry-title">{entry.title}</h4>
+                        <div className="entry-meta">
+                          <div>
+                            <span className="category-inline">
+                              <i
+                                className={`fa-solid ${getCategoryIcon(categories, entry.category)} category-icon`}
+                              ></i>
+                              {entry.category}
+                            </span>{' '}
+                            • <span className="entry-status">{entry.status}</span>
+                            {entry.startAt && (
+                              <span className="entry-start">
+                                {' '}
+                                • {formatDateTime(entry.startAt)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="entry-right">
+                        <span />
+                        <i className="fa-solid fa-chevron-right entry-chevron"></i>
+                      </div>
                     </div>
-                    <i className="fa-solid fa-chevron-right appointment-row-chevron"></i>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </Card>
@@ -183,33 +255,6 @@ export const Appointments = () => {
             </div>
           </Card>
 
-          {archivedEntries.length > 0 && (
-            <Card className="archive-card">
-              <button
-                className="archive-toggle"
-                onClick={() => setShowArchive((prev) => !prev)}
-              >
-                <span className="archive-toggle-text">Archive ({archivedEntries.length})</span>
-                <i className={`fa-solid fa-chevron-${showArchive ? 'up' : 'down'}`}></i>
-              </button>
-              {showArchive && (
-                <div className="archive-list">
-                  {archivedEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="archive-row"
-                      onClick={() => setSelectedEntry(entry)}
-                    >
-                      <span className="archive-title">{entry.title}</span>
-                      <span className="archive-date">
-                        {entry.startAt ? new Date(entry.startAt).toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
         </div>
       </div>
 
