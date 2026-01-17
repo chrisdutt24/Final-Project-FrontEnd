@@ -51,6 +51,9 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
   const [companyName, setCompanyName] = useState('')
   const [portalUrl, setPortalUrl] = useState('')
   const [notes, setNotes] = useState('')
+  const [location, setLocation] = useState('')
+  const [file, setFile] = useState(null)
+  const [removeDocument, setRemoveDocument] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -60,8 +63,77 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     initialData: DEFAULT_CATEGORIES,
   })
 
+  const { data: documents = [] } = useQuery({
+    queryKey: ['documents'],
+    queryFn: () => api.documents.list(),
+  })
+
+  const entryDocuments = entry ? documents.filter((doc) => doc.entryId === entry.id) : []
+  const currentDocument = entryDocuments[0] || null
+
   const activeCategory = categories.find((cat) => cat.name === category) || categories[0]
   const isContractOrInsurance = activeCategory?.group === 'contracts'
+
+  const readFileAsDataUrl = (selectedFile) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Could not read file'))
+      reader.readAsDataURL(selectedFile)
+    })
+
+  const dataUrlToObjectUrl = (dataUrl) => {
+    const parts = dataUrl.split(',')
+    if (parts.length < 2) return null
+    const header = parts[0]
+    const base64 = parts[1]
+    const mimeMatch = header.match(/data:([^;]+);base64/i)
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream'
+    try {
+      const binary = window.atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      return URL.createObjectURL(new Blob([bytes], { type: mime }))
+    } catch (error) {
+      return null
+    }
+  }
+
+  const openDocument = (doc) => {
+    if (!doc) return
+    if (doc.fileUrl) {
+      if (doc.fileUrl.startsWith('data:')) {
+        const objectUrl = dataUrlToObjectUrl(doc.fileUrl)
+        if (objectUrl) {
+          const newWindow = window.open(objectUrl, '_blank')
+          if (newWindow) {
+            newWindow.opener = null
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+            return
+          }
+          URL.revokeObjectURL(objectUrl)
+        }
+      } else {
+        window.open(doc.fileUrl, '_blank', 'noopener,noreferrer')
+        return
+      }
+    }
+    const fallbackWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!fallbackWindow) return
+    fallbackWindow.document.title = doc.filename || 'Document'
+    const body = fallbackWindow.document.body
+    body.style.fontFamily = 'Arial, sans-serif'
+    body.style.padding = '24px'
+    const title = fallbackWindow.document.createElement('h2')
+    title.textContent = doc.filename || 'Document'
+    const message = fallbackWindow.document.createElement('p')
+    message.textContent =
+      'This file was uploaded before previews were enabled. Please re-upload it to open.'
+    body.appendChild(title)
+    body.appendChild(message)
+  }
 
   useEffect(() => {
     if (!entry) return
@@ -76,8 +148,11 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     setNotes(entry.notes || '')
     setCompanyName(entry.companyName || '')
     setPortalUrl(entry.portalUrl || '')
+    setLocation(entry.location || '')
     const entryDate = entryIsContractLike ? entry.expirationDate : entry.startAt
     setDateValue(getInputValue(entryDate || '', !entryIsContractLike))
+    setFile(null)
+    setRemoveDocument(false)
   }, [entry, categories])
 
   const updateMutation = useMutation({
@@ -88,15 +163,29 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
         category: activeCategory?.name || category,
         type,
         notes: notes || '',
-        companyName: companyName.trim() || '',
-        portalUrl: portalUrl.trim() || '',
+        companyName: isContractOrInsurance ? companyName.trim() || '' : '',
+        portalUrl: isContractOrInsurance ? portalUrl.trim() || '' : '',
+        location: isContractOrInsurance ? '' : location.trim() || '',
         expirationDate: isContractOrInsurance ? dateValue || null : null,
         startAt: isContractOrInsurance ? null : dateValue || null,
       }
-      return api.entries.update(entry.id, payload)
+      const updatedEntry = await api.entries.update(entry.id, payload)
+      if (file || removeDocument) {
+        await api.documents.removeByEntry(entry.id)
+      }
+      if (file) {
+        const dataUrl = await readFileAsDataUrl(file)
+        await api.documents.create(entry.id, {
+          name: file.name,
+          type: file.type,
+          dataUrl,
+        })
+      }
+      return updatedEntry
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['entries'] })
+      queryClient.invalidateQueries({ queryKey: ['documents'] })
       setIsEditing(false)
       onClose()
     },
@@ -131,6 +220,19 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
     updateMutation.mutate()
   }
 
+  const handleFileChange = (event) => {
+    const nextFile = event.target.files ? event.target.files[0] : null
+    setFile(nextFile)
+    if (nextFile) {
+      setRemoveDocument(false)
+    }
+  }
+
+  const handleRemoveDocument = () => {
+    setFile(null)
+    setRemoveDocument(true)
+  }
+
   if (!entry) return null
   const entryCategory = categories.find((cat) => cat.name === entry.category)
   const displayCategory = entryCategory?.name || entry.category
@@ -163,27 +265,52 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
               <div className="details-label">Status</div>
               <div className={statusClasses}>{entry.status || '—'}</div>
             </div>
-            <div className="details-item">
-              <div className="details-label">Company</div>
-              <div className="details-value">{entry.companyName || '—'}</div>
-            </div>
-            <div className="details-item">
-              <div className="details-label">Customer Portal</div>
-              <div className="details-value">
-                {entry.portalUrl ? (
-                  <a
-                    className="details-link"
-                    href={getPortalHref(entry.portalUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {entry.portalUrl}
-                  </a>
-                ) : (
-                  '—'
-                )}
+            {entryIsContract ? (
+              <>
+                <div className="details-item">
+                  <div className="details-label">Company</div>
+                  <div className="details-value">{entry.companyName || '—'}</div>
+                </div>
+                <div className="details-item">
+                  <div className="details-label">Customer Portal</div>
+                  <div className="details-value">
+                    {entry.portalUrl ? (
+                      <a
+                        className="details-link"
+                        href={getPortalHref(entry.portalUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {entry.portalUrl}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </div>
+                </div>
+                <div className="details-item">
+                  <div className="details-label">Document</div>
+                  <div className="details-value">
+                    {currentDocument ? (
+                      <button
+                        type="button"
+                        className="details-doc-link"
+                        onClick={() => openDocument(currentDocument)}
+                      >
+                        {currentDocument.filename}
+                      </button>
+                    ) : (
+                      '—'
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="details-item">
+                <div className="details-label">Location</div>
+                <div className="details-value">{entry.location || '—'}</div>
               </div>
-            </div>
+            )}
             <div className="details-item">
               <div className="details-label">
                 {entryIsContract ? 'Expiration' : 'Date & Time'}
@@ -273,27 +400,42 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Company Name</label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(event) => setCompanyName(event.target.value)}
-              className="form-input"
-              placeholder="e.g. Vodafone"
-            />
-          </div>
+          {isContractOrInsurance && (
+            <div className="form-group">
+              <label className="form-label">Company Name</label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(event) => setCompanyName(event.target.value)}
+                className="form-input"
+                placeholder="e.g. Vodafone"
+              />
+            </div>
+          )}
 
-          <div className="form-group">
-            <label className="form-label">Customer Portal URL</label>
-            <input
-              type="url"
-              value={portalUrl}
-              onChange={(event) => setPortalUrl(event.target.value)}
-              className="form-input"
-              placeholder="https://portal.company.com"
-            />
-          </div>
+          {isContractOrInsurance ? (
+            <div className="form-group">
+              <label className="form-label">Customer Portal URL</label>
+              <input
+                type="url"
+                value={portalUrl}
+                onChange={(event) => setPortalUrl(event.target.value)}
+                className="form-input"
+                placeholder="https://portal.company.com"
+              />
+            </div>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Location</label>
+              <input
+                type="text"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                className="form-input"
+                placeholder="e.g. City Hall, Office, Online"
+              />
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label">Notes</label>
@@ -305,6 +447,53 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
               placeholder="Additional details..."
             />
           </div>
+
+          {isContractOrInsurance && (
+            <div className="form-group">
+              <label className="form-label">Document</label>
+              <div className="form-file-stack">
+                {currentDocument && !removeDocument && !file && (
+                  <div className="form-file-current">
+                    <button
+                      type="button"
+                      className="form-file-link"
+                      onClick={() => openDocument(currentDocument)}
+                    >
+                      {currentDocument.filename}
+                    </button>
+                    <button
+                      type="button"
+                      className="form-file-remove"
+                      onClick={handleRemoveDocument}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {removeDocument && !file && (
+                  <div className="form-file-note">Document will be removed.</div>
+                )}
+                <div className="form-file-row">
+                  <input
+                    id="entry-document-edit"
+                    type="file"
+                    onChange={handleFileChange}
+                    className="form-file-input"
+                  />
+                  <label className="form-file-button" htmlFor="entry-document-edit">
+                    {currentDocument ? 'Replace file' : 'Choose file'}
+                  </label>
+                  <span className="form-file-name">
+                    {file
+                      ? file.name
+                      : currentDocument && !removeDocument
+                        ? currentDocument.filename
+                        : 'No file selected'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="details-actions">
             <Button variant="secondary" onClick={() => setIsEditing(false)}>

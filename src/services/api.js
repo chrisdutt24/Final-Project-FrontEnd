@@ -399,6 +399,7 @@ export const api = {
         startAt: data.startAt,
         companyName: data.companyName || '',
         portalUrl: data.portalUrl || '',
+        location: data.location || '',
         notes: data.notes,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -445,6 +446,15 @@ export const api = {
         (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
       )
       return limit ? sorted.slice(0, limit) : sorted
+    },
+    removeByEntry: async (entryId) => {
+      await sleep(200)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
+      dbDocuments = dbDocuments.filter((doc) => doc.entryId !== entryId)
+      saveDocuments()
+      return true
     },
     create: async (entryId, file) => {
       await sleep(400)

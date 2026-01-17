@@ -247,7 +247,7 @@ export const Appointments = () => {
                     </div>
                     <div className="past-title">{entry.title}</div>
                     <div className="past-notes">
-                      {entry.notes || 'No location info'}
+                      {entry.location || entry.notes || 'No location info'}
                     </div>
                   </div>
                 ))

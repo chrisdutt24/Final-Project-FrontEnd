@@ -13,6 +13,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
   const [companyName, setCompanyName] = useState("");
   const [portalUrl, setPortalUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [location, setLocation] = useState("");
   const [file, setFile] = useState(null);
 
   const queryClient = useQueryClient();
@@ -64,6 +65,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
         startAt: startAt || undefined,
         companyName: companyName.trim() || undefined,
         portalUrl: portalUrl.trim() || undefined,
+        location: location.trim() || undefined,
         notes,
       });
       if (file) {
@@ -87,6 +89,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
       setCompanyName("");
       setPortalUrl("");
       setNotes("");
+      setLocation("");
       setFile(null);
     },
   });
@@ -100,6 +103,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     setCompanyName("");
     setPortalUrl("");
     setNotes("");
+    setLocation("");
     setFile(null);
   }, [isOpen]);
 
@@ -131,7 +135,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="form-input"
-            placeholder="e.g. Health Insurance"
+            placeholder="e.g. Work meeting"
           />
         </div>
 
@@ -177,27 +181,44 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
           </div>
         )}
 
-        <div className="form-group">
-          <label className="form-label">Company Name</label>
-          <input
-            type="text"
-            value={companyName}
-            onChange={(event) => setCompanyName(event.target.value)}
-            className="form-input"
-            placeholder="e.g. Vodafone"
-          />
-        </div>
+        {isContractOrInsurance && (
+          <div className="form-group">
+            <label className="form-label">Company Name</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+              className="form-input"
+              placeholder="e.g. Vodafone"
+            />
+          </div>
+        )}
 
-        <div className="form-group">
-          <label className="form-label">Customer Portal URL</label>
-          <input
-            type="url"
-            value={portalUrl}
-            onChange={(event) => setPortalUrl(event.target.value)}
-            className="form-input"
-            placeholder="https://portal.company.com"
-          />
-        </div>
+        {!isContractOrInsurance && (
+          <div className="form-group">
+            <label className="form-label">Location</label>
+            <input
+              type="text"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              className="form-input"
+              placeholder="e.g. City Hall, Office, Online"
+            />
+          </div>
+        )}
+
+        {isContractOrInsurance && (
+          <div className="form-group">
+            <label className="form-label">Customer Portal URL</label>
+            <input
+              type="url"
+              value={portalUrl}
+              onChange={(event) => setPortalUrl(event.target.value)}
+              className="form-input"
+              placeholder="https://portal.company.com"
+            />
+          </div>
+        )}
 
         <div className="form-group">
           <label className="form-label">Notes</label>
@@ -210,25 +231,27 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="entry-document">
-            Upload Document
-          </label>
-          <div className="form-file-row">
-            <input
-              id="entry-document"
-              type="file"
-              onChange={handleFileChange}
-              className="form-file-input"
-            />
-            <label className="form-file-button" htmlFor="entry-document">
-              Choose file
+        {isContractOrInsurance && (
+          <div className="form-group">
+            <label className="form-label" htmlFor="entry-document">
+              Upload Document
             </label>
-            <span className="form-file-name">
-              {file ? file.name : "No file selected"}
-            </span>
+            <div className="form-file-row">
+              <input
+                id="entry-document"
+                type="file"
+                onChange={handleFileChange}
+                className="form-file-input"
+              />
+              <label className="form-file-button" htmlFor="entry-document">
+                Choose file
+              </label>
+              <span className="form-file-name">
+                {file ? file.name : "No file selected"}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="form-actions">
           <Button type="submit" className="btn-block" disabled={mutation.isPending}>

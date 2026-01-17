@@ -36,11 +36,42 @@ export const Overview = () => {
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     return `https://${trimmed}`;
   };
+  const dataUrlToObjectUrl = (dataUrl) => {
+    const parts = dataUrl.split(",");
+    if (parts.length < 2) return null;
+    const header = parts[0];
+    const base64 = parts[1];
+    const mimeMatch = header.match(/data:([^;]+);base64/i);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    try {
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    } catch (error) {
+      return null;
+    }
+  };
   const openDocument = (doc) => {
     if (!doc) return;
     if (doc.fileUrl) {
-      window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
-      return;
+      if (doc.fileUrl.startsWith("data:")) {
+        const objectUrl = dataUrlToObjectUrl(doc.fileUrl);
+        if (objectUrl) {
+          const newWindow = window.open(objectUrl, "_blank");
+          if (newWindow) {
+            newWindow.opener = null;
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            return;
+          }
+          URL.revokeObjectURL(objectUrl);
+        }
+      } else {
+        window.open(doc.fileUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
     }
     const fallbackWindow = window.open("", "_blank", "noopener,noreferrer");
     if (!fallbackWindow) return;
