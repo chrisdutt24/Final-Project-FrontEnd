@@ -187,7 +187,7 @@ export const Appointments = () => {
                       className="calendar-today-button"
                       onClick={goToToday}
                     >
-                      Jump To Current Date
+                      Jump To Today
                     </button>
                     <button
                       type="button"
@@ -259,7 +259,6 @@ export const Appointments = () => {
                     const dayItems = isCurrentMonth ? calendarMap[key] || [] : []
                     return (
                       <button
-                        type="button"
                         key={`${month}-${index}`}
                         className={`calendar-cell calendar-cell-button${
                           isCurrentMonth ? '' : ' calendar-cell--muted'
