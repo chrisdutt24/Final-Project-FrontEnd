@@ -187,7 +187,7 @@ export const Appointments = () => {
                       className="calendar-today-button"
                       onClick={goToToday}
                     >
-                      Jump To Today
+                      Jump To Current Date
                     </button>
                     <button
                       type="button"
