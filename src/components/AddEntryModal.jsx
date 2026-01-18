@@ -5,7 +5,12 @@ import { EntryStatus, EntryType } from "../types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../services/api";
 
-export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
+export const AddEntryModal = ({
+  isOpen,
+  onClose,
+  defaultCategory,
+  presetStartAt,
+}) => {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
@@ -27,17 +32,16 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
   const categoryMatch = defaultCategory
     ? categories.find((cat) => cat.name === defaultCategory)
     : null;
+  const isAppointmentContext = defaultCategory === "Appointments";
+  const isContractContext =
+    defaultCategory === "General" ||
+    defaultCategory === "Contract" ||
+    defaultCategory === "Contracts";
   let defaultGroup = categoryMatch?.group || null;
-  if (!defaultGroup) {
-    if (
-      defaultCategory === "General" ||
-      defaultCategory === "Contract" ||
-      defaultCategory === "Contracts"
-    ) {
-      defaultGroup = "contracts";
-    } else if (defaultCategory === "Appointments") {
-      defaultGroup = "appointments";
-    }
+  if (isAppointmentContext) {
+    defaultGroup = "appointments";
+  } else if (isContractContext) {
+    defaultGroup = "contracts";
   }
   const targetGroup = defaultGroup || categories[0]?.group || "appointments";
   const availableCategories = categories.filter((cat) => cat.group === targetGroup);
@@ -99,13 +103,13 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
     setTitle("");
     setCategory("");
     setExpirationDate("");
-    setStartAt("");
+    setStartAt(presetStartAt || "");
     setCompanyName("");
     setPortalUrl("");
     setNotes("");
     setLocation("");
     setFile(null);
-  }, [isOpen]);
+  }, [isOpen, presetStartAt]);
 
   useEffect(() => {
     if (!availableCategories.length) return;
@@ -135,7 +139,7 @@ export const AddEntryModal = ({ isOpen, onClose, defaultCategory }) => {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="form-input"
-            placeholder="e.g. Work meeting"
+            placeholder={isContractOrInsurance ? "e.g. Internet contract" : "e.g. Work meeting"}
           />
         </div>
 

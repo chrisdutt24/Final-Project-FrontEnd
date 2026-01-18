@@ -4,6 +4,7 @@ import { Modal, Button } from './UI'
 import { DEFAULT_CATEGORIES, getCategoryIcon } from '../constants'
 import { EntryStatus, EntryType } from '../types'
 import { api } from '../services/api'
+import { formatDate, formatDateTime } from '../utils/dateFormat'
 
 const getInputValue = (value, withTime) => {
   if (!value) return ''
@@ -24,15 +25,8 @@ const getInputValue = (value, withTime) => {
 
 const formatDisplayDate = (value, withTime) => {
   if (!value) return '—'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return withTime
-    ? parsed.toLocaleString()
-    : parsed.toLocaleDateString('de-DE', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
+  const formatted = withTime ? formatDateTime(value) : formatDate(value)
+  return formatted || '—'
 }
 
 const getPortalHref = (value) => {

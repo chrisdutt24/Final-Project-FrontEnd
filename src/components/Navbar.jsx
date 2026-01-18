@@ -132,24 +132,6 @@ export const Navbar = () => {
                 >
                   Edit Categories
                 </button>
-                <button
-                  onClick={() => {
-                    setIsSettingsDropdownOpen(false)
-                    navigate('/settings/storage')
-                  }}
-                  className="dropdown-item"
-                >
-                  Storage & Documents
-                </button>
-                <button
-                  onClick={() => {
-                    setIsSettingsDropdownOpen(false)
-                    navigate('/settings/privacy')
-                  }}
-                  className="dropdown-item"
-                >
-                  Privacy & Security
-                </button>
                 <div className="dropdown-divider">
                   <button
                     onClick={() => logoutMutation.mutate()}

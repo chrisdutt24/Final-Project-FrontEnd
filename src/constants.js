@@ -1,4 +1,4 @@
-import { EntryType, EntryStatus } from './types'
+import { EntryType } from './types'
 
 export const CATEGORY_GROUPS = [
   { id: 'contracts', label: 'Contract' },
@@ -144,74 +144,3 @@ export const getCategoryByName = (categories, name) =>
 
 export const getCategoryIcon = (categories, name) =>
   getCategoryByName(categories, name)?.icon || 'fa-tag'
-
-export const INITIAL_ENTRIES = [
-  {
-    id: '1',
-    userId: 'demo-user',
-    title: 'Internet Fiber Contract',
-    category: 'General',
-    status: EntryStatus.ACTIVE,
-    type: EntryType.CONTRACT,
-    expirationDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    userId: 'demo-user',
-    title: 'Health Insurance Premium',
-    category: 'Insurance',
-    status: EntryStatus.DUE,
-    type: EntryType.INSURANCE,
-    expirationDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    userId: 'demo-user',
-    title: 'Annual Physical Exam',
-    category: 'Health',
-    status: EntryStatus.ACTIVE,
-    type: EntryType.HEALTH,
-    startAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    userId: 'demo-user',
-    title: 'Dinner with Sarah',
-    category: 'Friends',
-    status: EntryStatus.ACTIVE,
-    type: EntryType.FRIEND,
-    startAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '5',
-    userId: 'demo-user',
-    title: 'Q4 Budget Planning',
-    category: 'Work',
-    status: EntryStatus.DONE,
-    type: EntryType.WORK,
-    startAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '6',
-    userId: 'demo-user',
-    title: 'Car Insurance Renewal',
-    category: 'Insurance',
-    status: EntryStatus.ACTIVE,
-    type: EntryType.INSURANCE,
-    expirationDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
-
-export const INITIAL_DOCUMENTS = []

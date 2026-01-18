@@ -31,6 +31,23 @@ const saveJson = (key, value) => {
   }
 }
 
+const removeKey = (key) => {
+  if (!hasWindow) return
+  try {
+    window.localStorage.removeItem(key)
+  } catch (error) {
+    // Ignore storage failures.
+  }
+}
+
+const toPublicUser = (user) => {
+  if (!user) return null
+  return {
+    id: user.id,
+    email: user.email,
+  }
+}
+
 const storedUser = loadJson(STORAGE_KEYS.user, null)
 const storedUsers = loadJson(STORAGE_KEYS.users, [])
 
@@ -38,7 +55,7 @@ const users = Array.isArray(storedUsers) ? storedUsers : []
 let currentUser = null
 if (storedUser && typeof storedUser === 'object') {
   const match = users.find((user) => user.id === storedUser.id)
-  if (match) currentUser = match
+  if (match) currentUser = toPublicUser(match)
 }
 
 const DUE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
@@ -320,7 +337,7 @@ export const api = {
       if (user.password !== password) {
         throw new Error('Wrong password')
       }
-      currentUser = { id: user.id, email: user.email }
+      currentUser = toPublicUser(user)
       saveJson(STORAGE_KEYS.user, currentUser)
       loadUserData(currentUser)
       return currentUser
@@ -349,7 +366,76 @@ export const api = {
       }
       users.push(newUser)
       saveJson(STORAGE_KEYS.users, users)
-      return { id: newUser.id, email: newUser.email }
+      return toPublicUser(newUser)
+    },
+    changePassword: async (currentPassword, newPassword) => {
+      await sleep(400)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
+      if (!currentPassword || !newPassword) {
+        throw new Error('Please fill in all password fields')
+      }
+      const index = users.findIndex((item) => item.id === currentUser.id)
+      if (index === -1) {
+        throw new Error('Account not found')
+      }
+      if (users[index].password !== currentPassword) {
+        throw new Error('Current password is incorrect')
+      }
+      users[index] = { ...users[index], password: newPassword }
+      saveJson(STORAGE_KEYS.users, users)
+      return true
+    },
+    changeEmail: async (currentPassword, newEmail) => {
+      await sleep(400)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
+      if (!currentPassword || !newEmail) {
+        throw new Error('Please fill in all email fields')
+      }
+      const trimmedEmail = newEmail.trim()
+      if (!trimmedEmail) {
+        throw new Error('Email is required')
+      }
+      const index = users.findIndex((item) => item.id === currentUser.id)
+      if (index === -1) {
+        throw new Error('Account not found')
+      }
+      if (users[index].password !== currentPassword) {
+        throw new Error('Current password is incorrect')
+      }
+      const exists = users.some(
+        (item) =>
+          item.id !== currentUser.id && item.email.toLowerCase() === trimmedEmail.toLowerCase()
+      )
+      if (exists) {
+        throw new Error('Email is already in use')
+      }
+      users[index] = { ...users[index], email: trimmedEmail }
+      saveJson(STORAGE_KEYS.users, users)
+      currentUser = { ...currentUser, email: trimmedEmail }
+      saveJson(STORAGE_KEYS.user, currentUser)
+      return currentUser
+    },
+    deleteAccount: async () => {
+      await sleep(400)
+      if (!currentUser) {
+        throw new Error('Please log in first')
+      }
+      const userId = currentUser.id
+      const nextUsers = users.filter((item) => item.id !== userId)
+      users.length = 0
+      nextUsers.forEach((item) => users.push(item))
+      saveJson(STORAGE_KEYS.users, users)
+      removeKey(getUserKey(STORAGE_KEYS.entries, userId))
+      removeKey(getUserKey(STORAGE_KEYS.documents, userId))
+      removeKey(getUserKey(STORAGE_KEYS.categories, userId))
+      saveJson(STORAGE_KEYS.user, null)
+      currentUser = null
+      loadUserData(currentUser)
+      return true
     },
   },
   entries: {

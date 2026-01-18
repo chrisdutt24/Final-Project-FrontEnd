@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../services/api";
-import { Card, Button } from "../components/UI";
+import { Card, Button, Modal } from "../components/UI";
 import { DEFAULT_CATEGORIES, getCategoryIcon } from "../constants";
 import { EntryType, EntryStatus } from "../types";
 import { AddEntryModal } from "../components/AddEntryModal";
 import { EntryDetailsModal } from "../components/EntryDetailsModal";
+import { formatDate, formatDateTime } from "../utils/dateFormat";
 
 export const Overview = () => {
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -14,21 +15,25 @@ export const Overview = () => {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showContractArchive, setShowContractArchive] = useState(false);
   const [showAppointmentArchive, setShowAppointmentArchive] = useState(false);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [dismissedDeadlineIds, setDismissedDeadlineIds] = useState([]);
+  const [suppressedDeadlineIds, setSuppressedDeadlineIds] = useState(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem("lifeAdmin.deadlinePopupDismissedIds");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  });
+  const deadlineSuppressKey = "lifeAdmin.deadlinePopupDismissedIds";
+  const deadlinePopupEnabledKey = "lifeAdmin.notifications.deadlinePopupEnabled";
+  const deadlinePopupEnabled =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem(deadlinePopupEnabledKey) !== "false"
+      : true;
 
-  const formatDate = (value) =>
-    new Date(value).toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  const formatDateTime = (value) =>
-    new Date(value).toLocaleString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   const formatPortalHref = (value) => {
     if (!value) return "";
     const trimmed = value.trim();
@@ -93,6 +98,11 @@ export const Overview = () => {
     queryFn: () => api.entries.list({ category: selectedCategories }),
   });
 
+  const { data: allEntries = [] } = useQuery({
+    queryKey: ["entries", "all"],
+    queryFn: () => api.entries.list(),
+  });
+
   const { data: categories = DEFAULT_CATEGORIES } = useQuery({
     queryKey: ["categories"],
     queryFn: api.categories.list,
@@ -138,15 +148,25 @@ export const Overview = () => {
       entry.status === EntryStatus.ACTIVE
   ).length;
 
-  const fourteenDaysFromNow = new Date();
-  fourteenDaysFromNow.setDate(fourteenDaysFromNow.getDate() + 14);
-  const deadlineApproaching = entries.filter((entry) => {
+  const weeksFromNow = new Date();
+  weeksFromNow.setDate(weeksFromNow.getDate() + 28);
+  const deadlineEntries = entries.filter((entry) => {
     if (getEntryGroup(entry) !== "contracts") return false;
     if (entry.status === EntryStatus.DONE) return false;
     if (!entry.expirationDate) return false;
     const exp = new Date(entry.expirationDate);
-    return exp <= fourteenDaysFromNow && exp >= new Date();
-  }).length;
+    return exp <= weeksFromNow && exp >= new Date();
+  });
+  const deadlineApproaching = deadlineEntries.length;
+
+  const deadlinePopupEntries = allEntries.filter((entry) => {
+    if (getEntryGroup(entry) !== "contracts") return false;
+    if (entry.status === EntryStatus.DONE) return false;
+    if (!entry.expirationDate) return false;
+    const exp = new Date(entry.expirationDate);
+    return exp <= weeksFromNow && exp >= new Date();
+  });
+  const deadlinePopupCount = deadlinePopupEntries.length;
 
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
@@ -177,6 +197,40 @@ export const Overview = () => {
   const archivedAppointmentEntries = appointmentEntries.filter(
     (entry) => entry.status === EntryStatus.DONE
   );
+
+  useEffect(() => {
+    const currentIds = deadlinePopupEntries.map((entry) => entry.id);
+    const blockedIds = new Set([
+      ...suppressedDeadlineIds,
+      ...dismissedDeadlineIds,
+    ]);
+    const hasNewDeadline = currentIds.some((id) => !blockedIds.has(id));
+
+    if (deadlinePopupCount === 0) {
+      setShowDeadlineModal(false);
+      setDismissedDeadlineIds([]);
+      if (suppressedDeadlineIds.length > 0 && typeof window !== "undefined") {
+        window.localStorage.removeItem(deadlineSuppressKey);
+      }
+      if (suppressedDeadlineIds.length > 0) {
+        setSuppressedDeadlineIds([]);
+      }
+      return;
+    }
+    if (!deadlinePopupEnabled) return;
+    if (!hasNewDeadline) return;
+    if (isModalOpen || selectedEntry) return;
+    setShowDeadlineModal(true);
+  }, [
+    deadlinePopupCount,
+    deadlinePopupEntries,
+    deadlinePopupEnabled,
+    suppressedDeadlineIds,
+    dismissedDeadlineIds,
+    isModalOpen,
+    selectedEntry,
+    deadlineSuppressKey,
+  ]);
 
   const toggleCategory = (cat) => {
     setSelectedCategories((prev) =>
@@ -424,7 +478,17 @@ export const Overview = () => {
 
         <div className="overview-side">
           <Card>
-            <h3 className="card-title">Filter</h3>
+            <div className="filter-header">
+              <h3 className="card-title">Filter</h3>
+              <button
+                className="filter-clear"
+                type="button"
+                onClick={() => setSelectedCategories([])}
+                disabled={selectedCategories.length === 0}
+              >
+                Clear all
+              </button>
+            </div>
             <div className="filter-sections">
               <div className="filter-section">
                 <div className="filter-section-title">Contract</div>
@@ -513,6 +577,56 @@ export const Overview = () => {
         onClose={() => setSelectedEntry(null)}
         entry={selectedEntry}
       />
+      <Modal
+        isOpen={showDeadlineModal}
+        onClose={() => {
+          setShowDeadlineModal(false);
+          setDismissedDeadlineIds(deadlinePopupEntries.map((entry) => entry.id));
+        }}
+        title="Upcoming deadline"
+      >
+        <p className="deadline-note">
+          You have {deadlinePopupCount} contract
+          {deadlinePopupCount === 1 ? "" : "s"} expiring within the next weeks.
+        </p>
+        <div className="deadline-list">
+          {deadlinePopupEntries.map((entry) => (
+            <div key={entry.id} className="deadline-item">
+              <div className="deadline-title">{entry.title}</div>
+              <div className="deadline-date">
+                Exp {formatDate(entry.expirationDate)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="deadline-actions">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const ids = deadlinePopupEntries.map((entry) => entry.id);
+              setSuppressedDeadlineIds(ids);
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(
+                  deadlineSuppressKey,
+                  JSON.stringify(ids)
+                );
+              }
+              setShowDeadlineModal(false);
+            }}
+          >
+            Don't show again
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowDeadlineModal(false);
+              setDismissedDeadlineIds(deadlinePopupEntries.map((entry) => entry.id));
+            }}
+          >
+            Got it
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

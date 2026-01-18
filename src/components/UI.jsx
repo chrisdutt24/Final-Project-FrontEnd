@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 
 export const Modal = ({ isOpen, onClose, title, children }) => {
-  const modalRef = useRef(null)
   const bodyRef = useRef(null)
 
   const updateScrollbar = () => {
@@ -74,7 +73,6 @@ export const Modal = ({ isOpen, onClose, title, children }) => {
   return (
     <div className="modal-backdrop">
       <div
-        ref={modalRef}
         className="modal"
         onClick={(event) => event.stopPropagation()}
       >
