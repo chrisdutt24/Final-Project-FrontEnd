@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useLayoutEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
@@ -15,9 +15,9 @@ function App() {
   const location = useLocation()
   const { data: user, isLoading } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo(0, 0)
-  }, [location.key])
+  }, [location.pathname, location.search, location.hash])
 
   if (isLoading) {
     return (
