@@ -38,7 +38,7 @@ function App() {
       <Navbar />
 
       <main className="app-main">
-        <Routes>
+        <Routes key={location.key}>
           <Route path="/" element={<Overview />} />
           <Route path="/appointments" element={<Appointments />} />
           <Route path="/settings/account" element={<AccountSettings />} />
