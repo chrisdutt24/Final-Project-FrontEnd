@@ -1,5 +1,5 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { Overview } from './pages/Overview'
@@ -12,7 +12,12 @@ import { Auth } from './pages/Auth'
 import { api } from './services/api'
 
 function App() {
+  const location = useLocation()
   const { data: user, isLoading } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   if (isLoading) {
     return (
