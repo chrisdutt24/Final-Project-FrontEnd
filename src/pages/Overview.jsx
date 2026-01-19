@@ -208,7 +208,9 @@ export const Overview = () => {
 
     if (deadlinePopupCount === 0) {
       setShowDeadlineModal(false);
-      setDismissedDeadlineIds([]);
+      if (dismissedDeadlineIds.length > 0) {
+        setDismissedDeadlineIds([]);
+      }
       if (suppressedDeadlineIds.length > 0 && typeof window !== "undefined") {
         window.localStorage.removeItem(deadlineSuppressKey);
       }
