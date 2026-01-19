@@ -255,6 +255,12 @@ textarea {
   gap: 16px;
 }
 
+.navbar-debug {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
 .navbar-user-email {
   font-size: 14px;
   color: #6b7280;
