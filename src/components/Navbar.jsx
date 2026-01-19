@@ -14,19 +14,6 @@ export const Navbar = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const forceHashNavigation = (path) => {
-    if (typeof window === 'undefined') return
-    const normalized = path.startsWith('/') ? path : `/${path}`
-    const targetHash = `#${normalized}`
-    if (window.location.hash !== targetHash) {
-      const nextUrl = `${window.location.origin}${window.location.pathname}${targetHash}`
-      window.location.href = nextUrl
-      setBrowserHash(targetHash)
-      return
-    }
-    setBrowserHash(targetHash)
-  }
-
   useEffect(() => {
     if (typeof window === 'undefined') return
     const updateHash = () => setBrowserHash(window.location.hash || '')
@@ -85,7 +72,6 @@ export const Navbar = () => {
               }
               onClick={() => {
                 setLastNavClick('overview')
-                forceHashNavigation('/')
               }}
             >
               Overview
@@ -97,7 +83,6 @@ export const Navbar = () => {
               }
               onClick={() => {
                 setLastNavClick('appointments')
-                forceHashNavigation('/appointments')
               }}
             >
               Appointments
@@ -136,7 +121,6 @@ export const Navbar = () => {
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
                     navigate('/settings/account')
-                    forceHashNavigation('/settings/account')
                   }}
                   className="dropdown-item"
                 >
@@ -146,7 +130,6 @@ export const Navbar = () => {
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
                     navigate('/settings/notifications')
-                    forceHashNavigation('/settings/notifications')
                   }}
                   className="dropdown-item"
                 >
@@ -156,7 +139,6 @@ export const Navbar = () => {
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
                     navigate('/settings/dates')
-                    forceHashNavigation('/settings/dates')
                   }}
                   className="dropdown-item"
                 >
@@ -166,7 +148,6 @@ export const Navbar = () => {
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
                     navigate('/settings/categories')
-                    forceHashNavigation('/settings/categories')
                   }}
                   className="dropdown-item"
                 >

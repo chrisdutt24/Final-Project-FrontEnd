@@ -1,13 +1,7 @@
 import React, { useEffect, useLayoutEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
-import { Overview } from './pages/Overview'
-import { Appointments } from './pages/Appointments'
-import { CategorySettings } from './pages/CategorySettings'
-import { AccountSettings } from './pages/AccountSettings'
-import { NotificationsSettings } from './pages/NotificationsSettings'
-import { DateSettings } from './pages/DateSettings'
 import { Auth } from './pages/Auth'
 import { api } from './services/api'
 
@@ -50,14 +44,7 @@ function App() {
       <Navbar />
 
       <main className="app-main">
-        <Routes key={location.key}>
-          <Route path="/" element={<Overview />} />
-          <Route path="/appointments" element={<Appointments />} />
-          <Route path="/settings/account" element={<AccountSettings />} />
-          <Route path="/settings/notifications" element={<NotificationsSettings />} />
-          <Route path="/settings/dates" element={<DateSettings />} />
-          <Route path="/settings/categories" element={<CategorySettings />} />
-        </Routes>
+        <Outlet />
       </main>
 
       <footer className="app-footer">
