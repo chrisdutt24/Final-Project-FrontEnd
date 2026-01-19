@@ -7,6 +7,7 @@ import { Button } from './UI'
 export const Navbar = () => {
   const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
   const [lastNavClick, setLastNavClick] = useState('')
+  const [browserHash, setBrowserHash] = useState('')
   const dropdownRef = useRef(null)
 
   const queryClient = useQueryClient()
@@ -18,9 +19,21 @@ export const Navbar = () => {
     const normalized = path.startsWith('/') ? path : `/${path}`
     const targetHash = `#${normalized}`
     if (window.location.hash !== targetHash) {
-      window.location.hash = targetHash
+      const nextUrl = `${window.location.origin}${window.location.pathname}${targetHash}`
+      window.location.href = nextUrl
+      setBrowserHash(targetHash)
+      return
     }
+    setBrowserHash(targetHash)
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const updateHash = () => setBrowserHash(window.location.hash || '')
+    updateHash()
+    window.addEventListener('hashchange', updateHash)
+    return () => window.removeEventListener('hashchange', updateHash)
+  }, [])
 
   const { data: user } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
 
@@ -94,7 +107,8 @@ export const Navbar = () => {
 
         <div className="navbar-actions">
           <div className="navbar-debug">
-            Path: {location.pathname} {location.hash} {lastNavClick && `• Click: ${lastNavClick}`}
+            Path: {location.pathname} {location.hash} • Hash: {browserHash || '(empty)'}
+            {lastNavClick && ` • Click: ${lastNavClick}`}
           </div>
           <div className="navbar-user-email">{user.email}</div>
           <Button
