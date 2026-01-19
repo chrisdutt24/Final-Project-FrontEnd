@@ -98,7 +98,7 @@ export const Overview = () => {
     queryFn: () => api.entries.list({ category: selectedCategories }),
   });
 
-  const { data: allEntries = [] } = useQuery({
+  const { data: allEntries = [], isLoading: allEntriesLoading } = useQuery({
     queryKey: ["entries", "all"],
     queryFn: () => api.entries.list(),
   });
@@ -199,6 +199,7 @@ export const Overview = () => {
   );
 
   useEffect(() => {
+    if (allEntriesLoading) return;
     const currentIds = deadlinePopupEntries.map((entry) => entry.id);
     const blockedIds = new Set([
       ...suppressedDeadlineIds,
@@ -232,6 +233,7 @@ export const Overview = () => {
     isModalOpen,
     selectedEntry,
     deadlineSuppressKey,
+    allEntriesLoading,
   ]);
 
   const toggleCategory = (cat) => {
