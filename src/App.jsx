@@ -23,6 +23,14 @@ function App() {
     console.log('LOCATION:', location.pathname, location.hash)
   }, [location.pathname, location.hash])
 
+  useEffect(() => {
+    const handleHashChange = () => {
+      console.log('HASHCHANGE:', window.location.hash)
+    }
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
   if (isLoading) {
     return (
       <div className="app-shell">
