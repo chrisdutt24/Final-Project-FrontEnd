@@ -1,9 +1,15 @@
-import React, { useEffect, useLayoutEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import React, { useLayoutEffect } from 'react'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
 import { Auth } from './pages/Auth'
 import { api } from './services/api'
+import { Overview } from './pages/Overview'
+import { Appointments } from './pages/Appointments'
+import { CategorySettings } from './pages/CategorySettings'
+import { AccountSettings } from './pages/AccountSettings'
+import { NotificationsSettings } from './pages/NotificationsSettings'
+import { DateSettings } from './pages/DateSettings'
 
 function App() {
   const location = useLocation()
@@ -12,18 +18,6 @@ function App() {
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname, location.search, location.hash])
-
-  useEffect(() => {
-    console.log('LOCATION:', location.pathname, location.hash)
-  }, [location.pathname, location.hash])
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      console.log('HASHCHANGE:', window.location.hash)
-    }
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
 
   if (isLoading) {
     return (
@@ -44,7 +38,14 @@ function App() {
       <Navbar />
 
       <main className="app-main">
-        <Outlet />
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/appointments" element={<Appointments />} />
+          <Route path="/settings/account" element={<AccountSettings />} />
+          <Route path="/settings/notifications" element={<NotificationsSettings />} />
+          <Route path="/settings/dates" element={<DateSettings />} />
+          <Route path="/settings/categories" element={<CategorySettings />} />
+        </Routes>
       </main>
 
       <footer className="app-footer">

@@ -1,26 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from './UI'
 
 export const Navbar = () => {
   const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
-  const [lastNavClick, setLastNavClick] = useState('')
-  const [browserHash, setBrowserHash] = useState('')
   const dropdownRef = useRef(null)
 
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const location = useLocation()
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const updateHash = () => setBrowserHash(window.location.hash || '')
-    updateHash()
-    window.addEventListener('hashchange', updateHash)
-    return () => window.removeEventListener('hashchange', updateHash)
-  }, [])
 
   const { data: user } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
 
@@ -70,9 +59,6 @@ export const Navbar = () => {
               className={({ isActive }) =>
                 `navbar-link${isActive ? ' navbar-link--active' : ''}`
               }
-              onClick={() => {
-                setLastNavClick('overview')
-              }}
             >
               Overview
             </NavLink>
@@ -81,9 +67,6 @@ export const Navbar = () => {
               className={({ isActive }) =>
                 `navbar-link${isActive ? ' navbar-link--active' : ''}`
               }
-              onClick={() => {
-                setLastNavClick('appointments')
-              }}
             >
               Appointments
             </NavLink>
@@ -91,10 +74,6 @@ export const Navbar = () => {
         </div>
 
         <div className="navbar-actions">
-          <div className="navbar-debug">
-            Path: {location.pathname} {location.hash} • Hash: {browserHash || '(empty)'}
-            {lastNavClick && ` • Click: ${lastNavClick}`}
-          </div>
           <div className="navbar-user-email">{user.email}</div>
           <Button
             variant="secondary"
