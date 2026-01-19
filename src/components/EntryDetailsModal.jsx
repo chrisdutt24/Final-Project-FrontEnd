@@ -90,7 +90,7 @@ export const EntryDetailsModal = ({ isOpen, onClose, entry }) => {
         bytes[i] = binary.charCodeAt(i)
       }
       return URL.createObjectURL(new Blob([bytes], { type: mime }))
-    } catch (error) {
+    } catch {
       return null
     }
   }

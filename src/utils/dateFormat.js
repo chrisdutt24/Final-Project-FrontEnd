@@ -18,7 +18,7 @@ export const loadDateTimeSettings = () => {
       dateFormat: parsed?.dateFormat || DEFAULT_DATE_SETTINGS.dateFormat,
       timeFormat: parsed?.timeFormat || DEFAULT_DATE_SETTINGS.timeFormat,
     }
-  } catch (error) {
+  } catch {
     return DEFAULT_DATE_SETTINGS
   }
 }

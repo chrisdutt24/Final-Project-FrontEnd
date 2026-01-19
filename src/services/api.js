@@ -17,7 +17,7 @@ const loadJson = (key, fallback) => {
     const raw = window.localStorage.getItem(key)
     if (!raw) return fallback
     return JSON.parse(raw)
-  } catch (error) {
+  } catch {
     return fallback
   }
 }
@@ -26,7 +26,7 @@ const saveJson = (key, value) => {
   if (!hasWindow) return
   try {
     window.localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
+  } catch {
     // Ignore storage failures (private mode, quota exceeded).
   }
 }
@@ -35,7 +35,7 @@ const removeKey = (key) => {
   if (!hasWindow) return
   try {
     window.localStorage.removeItem(key)
-  } catch (error) {
+  } catch {
     // Ignore storage failures.
   }
 }

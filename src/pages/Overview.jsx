@@ -23,7 +23,7 @@ export const Overview = () => {
       const raw = window.localStorage.getItem("lifeAdmin.deadlinePopupDismissedIds");
       const parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
+    } catch {
       return [];
     }
   });
@@ -55,7 +55,7 @@ export const Overview = () => {
         bytes[i] = binary.charCodeAt(i);
       }
       return URL.createObjectURL(new Blob([bytes], { type: mime }));
-    } catch (error) {
+    } catch {
       return null;
     }
   };
