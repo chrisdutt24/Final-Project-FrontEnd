@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react'
+import React, { useEffect, useLayoutEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Navbar } from './components/Navbar'
@@ -18,6 +18,10 @@ function App() {
   useLayoutEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname, location.search, location.hash])
+
+  useEffect(() => {
+    console.log('LOCATION:', location.pathname, location.hash)
+  }, [location.pathname, location.hash])
 
   if (isLoading) {
     return (
