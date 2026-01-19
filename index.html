@@ -7,6 +7,42 @@
     <title>LifeSync</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <script>
+      (function () {
+        if (typeof window === 'undefined' || !window.fetch) return
+        var storageKey = 'lifesync.buildVersion'
+        var infoUrl = './build-info.json'
+        fetch(infoUrl, { cache: 'no-store' })
+          .then(function (res) {
+            if (!res.ok) throw new Error('build-info')
+            return res.json()
+          })
+          .then(function (data) {
+            var version = data && data.version
+            if (!version) return
+            var stored = window.localStorage.getItem(storageKey)
+            if (stored && stored !== version) {
+              window.localStorage.setItem(storageKey, version)
+              var base = window.location.origin + window.location.pathname
+              var hash = window.location.hash || ''
+              var search = window.location.search || ''
+              if (typeof URLSearchParams === 'function') {
+                var params = new URLSearchParams(search)
+                params.set('v', version)
+                search = '?' + params.toString()
+              } else {
+                search = '?v=' + encodeURIComponent(version)
+              }
+              window.location.replace(base + search + hash)
+              return
+            }
+            if (!stored) {
+              window.localStorage.setItem(storageKey, version)
+            }
+          })
+          .catch(function () {})
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
