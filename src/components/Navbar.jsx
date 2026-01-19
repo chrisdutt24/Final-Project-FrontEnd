@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from './UI'
@@ -10,6 +10,14 @@ export const Navbar = () => {
 
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const location = useLocation()
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const buildPublicUrl = (path) => {
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+    const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+    return `${normalizedBase}${normalizedPath}`
+  }
+  const isAppointmentsActive = location.pathname === '/appointments'
 
   const { data: user } = useQuery({ queryKey: ['user'], queryFn: api.auth.me })
 
@@ -62,14 +70,12 @@ export const Navbar = () => {
             >
               Overview
             </NavLink>
-            <NavLink
-              to="/appointments"
-              className={({ isActive }) =>
-                `navbar-link${isActive ? ' navbar-link--active' : ''}`
-              }
+            <a
+              href={buildPublicUrl('appointments/')}
+              className={`navbar-link${isAppointmentsActive ? ' navbar-link--active' : ''}`}
             >
               Appointments
-            </NavLink>
+            </a>
           </div>
         </div>
 
@@ -99,7 +105,7 @@ export const Navbar = () => {
                 <button
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
-                    navigate('/settings/account')
+                    window.location.href = buildPublicUrl('settings/account/')
                   }}
                   className="dropdown-item"
                 >
@@ -108,7 +114,7 @@ export const Navbar = () => {
                 <button
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
-                    navigate('/settings/notifications')
+                    window.location.href = buildPublicUrl('settings/notifications/')
                   }}
                   className="dropdown-item"
                 >
@@ -117,7 +123,7 @@ export const Navbar = () => {
                 <button
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
-                    navigate('/settings/dates')
+                    window.location.href = buildPublicUrl('settings/dates/')
                   }}
                   className="dropdown-item"
                 >
@@ -126,7 +132,7 @@ export const Navbar = () => {
                 <button
                   onClick={() => {
                     setIsSettingsDropdownOpen(false)
-                    navigate('/settings/categories')
+                    window.location.href = buildPublicUrl('settings/categories/')
                   }}
                   className="dropdown-item"
                 >
